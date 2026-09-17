@@ -1,2 +1,7 @@
 # root underscore folders are for internal use only, so ignore them
 /_*
+
+# Shiller ie_data.xls — not committed (no explicit license on shillerdata.com;
+# re-pull fresh each session, vintage-dependent per DATA.md §4/§7).
+# Provenance + hash pin: DATA.md §1.
+ie_data.xls
