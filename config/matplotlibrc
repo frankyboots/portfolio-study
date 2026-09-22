@@ -1,0 +1,6 @@
+# Committed matplotlib config dir for subprocess pipeline stages.
+# The pipeline runner (scripts/pipeline.py) points MPLCONFIGDIR here so
+# every subprocess stage locks the same svg.hashsalt it sets in-process,
+# guaranteeing byte-identical SVG output regardless of any user config.
+backend : Agg
+svg.hashsalt : portfolio-study-v1

@@ -1,0 +1,53 @@
+[project]
+name = "portfolio-study"
+version = "0.1.0"
+description = "Pinned analysis environment for the 150-year 60/40 portfolio study"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "numpy>=2.0",
+    "pandas>=3.0,<3.1",
+    "xlrd>=2.0.1",
+    "olefile>=0.47",
+    "matplotlib>=3.11,<3.12",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "ruff>=0.6",
+    "mypy>=1.13",
+    "pandas-stubs>=3.0,<3.1",
+]
+
+[tool.uv]
+# Non-packaged mode: no src/ layout, `uv sync` must not build a package.
+package = false
+
+[tool.ruff]
+# Legacy, self-disciplined: the archived probes and the standalone validated
+# suite are excluded from lint (never edited by the build tooling).
+exclude = [
+    "analysis/_archive",
+    "analysis/validate_data_md.py",
+    # Deliberate import-wall violations owned by the checker's fixtures.
+    "tests/fixtures",
+    # data/ holds the dataset record; never reformat its embedded code.
+    "data",
+]
+
+[tool.mypy]
+python_version = "3.12"
+# No packaging (tool.uv package = false): resolve `analysis.*` from the
+# repo root instead of an installed distribution.
+mypy_path = "."
+files = ["analysis", "scripts"]
+# Legacy, self-disciplined: the archived probes (documented bugs) and the
+# standalone validated suite are never edited by build tooling.
+exclude = [
+    "^analysis/_archive/",
+    "^analysis/validate_data_md[.]py$",
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

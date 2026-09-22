@@ -5,3 +5,11 @@
 # re-pull fresh each session, vintage-dependent per DATA.md §4/§7).
 # Provenance + hash pin: DATA.md §1.
 ie_data.xls
+
+# Tool caches (uv env, mypy, pytest, ruff, bytecode) — never committed.
+__pycache__/
+*.pyc
+.venv/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
