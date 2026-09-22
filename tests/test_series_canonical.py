@@ -83,6 +83,24 @@ def test_yyyy_mm_zero_padded_seed_row(tmp_path_factory: pytest.TempPathFactory) 
     assert first == "1871.01,1.0,1.0"
 
 
+def test_build_matches_committed_artifacts(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> None:
+    """Value-level tie to the committed artifacts: a construction regression
+    (e.g. D/12 dropped) must fail here even if the internal consistency
+    checks still hold.
+    """
+    root = _staged_root(tmp_path_factory)
+    assert build_series(root) == 0
+    built = root / "artifacts" / "series"
+    committed = REPO_ROOT / "artifacts" / "series"
+    assert (built / CSV_NAME).read_bytes() == (committed / CSV_NAME).read_bytes(), (
+        "built CSV differs from the committed artifact; rebuild and re-commit "
+        "only if the construction change is deliberate"
+    )
+    assert (built / META_NAME).read_bytes() == (committed / META_NAME).read_bytes()
+
+
 def test_build_twice_is_byte_identical(
     tmp_path_factory: pytest.TempPathFactory,
 ) -> None:
