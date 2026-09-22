@@ -81,8 +81,27 @@ def run_import_wall_check() -> int:
     return result.returncode
 
 
+def run_series_stage() -> int:
+    """Stage: build the canonical monthly 60/40 series artifacts.
+
+    Imports the builder in-process; the repo root is prepended to
+    ``sys.path`` first so ``analysis.series`` resolves when the runner
+    is launched as ``python scripts/pipeline.py`` (which puts
+    ``scripts/``, not the repo root, on the path).
+    """
+    root_str = str(REPO_ROOT)
+    if root_str not in sys.path:
+        sys.path.insert(0, root_str)
+    from analysis.series.canonical_60_40 import build_series
+
+    return build_series(REPO_ROOT)
+
+
 #: Ordered pipeline stages; later stories append here.
-STAGES: list[tuple[str, Callable[[], int]]] = [("import-wall", run_import_wall_check)]
+STAGES: list[tuple[str, Callable[[], int]]] = [
+    ("import-wall", run_import_wall_check),
+    ("series", run_series_stage),
+]
 
 
 def main() -> int:

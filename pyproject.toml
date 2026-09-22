@@ -38,8 +38,13 @@ exclude = [
 [tool.mypy]
 python_version = "3.12"
 # No packaging (tool.uv package = false): resolve `analysis.*` from the
-# repo root instead of an installed distribution.
+# repo root instead of an installed distribution. `analysis` stays a PEP 420
+# namespace package, so `analysis.series.*` (imported by the pipeline stage)
+# must map to the same module names as the source files under `files=`;
+# explicit bases is what makes that unambiguous (avoids a duplicate
+# top-level `series` mapping once the layer packages hold real modules).
 mypy_path = "."
+explicit_package_bases = true
 files = ["analysis", "scripts"]
 # Legacy, self-disciplined: the archived probes (documented bugs) and the
 # standalone validated suite are never edited by build tooling.

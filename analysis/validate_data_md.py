@@ -588,6 +588,112 @@ check("notes row = the 3 documented strings",
       set(notes) == {"Sept price is Sept 1st close", "Oct '25/Aug/Sept CPI estimated",
                      "Sept GS10 is Sept 1st value"}, f"got {notes}")
 
+# ---------------------------------------------------------------- series construction
+# Independent in-memory reconstruction of the canonical monthly-rebalanced
+# 60/40 from the loaded columns: positive facts (endpoint, seed, row count),
+# byte-consistency with the committed CSV, and one negative variant per
+# construction convention. A convention-violating variant must diverge
+# from the canonical build in >=1 used month (rel > 1e-12) or, for the
+# date-parse variant, in the month labels; variants are in-memory only.
+BM_TOL = 1e-12  # the suite's BM-identity tolerance (DATA.md §8)
+
+def req_missing(i):
+    miss = [nm for nm, col in (("P", P), ("D", D), ("CPI", CPI), ("BR", BR)) if col[i] is None]
+    if i > 0 and BM[i - 1] is None:
+        miss.append("BM[prev]")
+    return miss
+
+j = n - 1
+excluded = []
+while j > 0 and req_missing(j):
+    excluded.append(ym(j, dates))
+    j -= 1
+check("series endpoint = last month with all construction inputs = 2026.06",
+      ym(j, dates) == "2026.06", f"endpoint {ym(j, dates)}; trailing excluded {excluded}")
+check("series row count = 1866 (1871.01 -> 2026.06, both seeded at 1.0)",
+      j + 1 == 1866, f"got {j + 1}")
+check("provisional tail excluded = exactly 2026.07/08/09",
+      excluded == ["2026.09", "2026.08", "2026.07"], f"got {excluded}")
+check("seed month = 1871.01", ym(0, dates) == "1871.01", f"got {ym(0, dates)}")
+check("no mid-series None in P/D/CPI/BR (and BM[prev]) through the endpoint",
+      not any(req_missing(i) for i in range(0, j + 1)),
+      f"first bad: {[ym(i, dates) for i in range(j + 1) if req_missing(i)][:5]}")
+
+def build6040(nom_eq, nom_bond):
+    real = [1.0]; nom = [1.0]
+    for i in range(1, j + 1):
+        real_f = 0.6 * (RT[i] / RT[i - 1]) + 0.4 * (BR[i] / BR[i - 1])
+        real.append(real[-1] * real_f)
+        nom.append(nom[-1] * (0.6 * nom_eq(i) + 0.4 * nom_bond(i)))
+    return real, nom
+
+c_real, c_nom = build6040(
+    lambda i: (P[i] + D[i] / 12) / P[i - 1],
+    lambda i: BM[i - 1],
+)
+bad_bm = [i for i in range(1, j + 1)
+          if abs(BM[i - 1] - (BR[i] / BR[i - 1]) * (CPI[i] / CPI[i - 1]))
+          > BM_TOL * abs((BR[i] / BR[i - 1]) * (CPI[i] / CPI[i - 1]))]
+check("BM[i-1] == (BR[i]/BR[i-1])*(CPI[i]/CPI[i-1]) rel-tol 1e-12 for all used months",
+      not bad_bm, f"first bad: {[ym(i, dates) for i in bad_bm[:5]]}")
+
+def diverges(a, b):
+    if len(a) != len(b):
+        return True
+    return any(abs(x - y) > BM_TOL * abs(y) for x, y in zip(a, b))
+
+# negative variant 1: D/12 omitted (D treated as a full monthly flow)
+v1, _ = build6040(
+    lambda i: (P[i] + D[i]) / P[i - 1],
+    lambda i: BM[i - 1],
+)
+check("negative: D/12 omission diverges from canonical in >=1 used month",
+      diverges(v1, c_nom),
+      f"max rel diff {max(abs(a - b) / max(abs(b), 1e-300) for a, b in zip(v1, c_nom)):.3e}")
+
+# negative variant 2: col-17 without the one-row shift (month i uses BM[i])
+v2, _ = build6040(
+    lambda i: (P[i] + D[i] / 12) / P[i - 1],
+    lambda i: BM[i],
+)
+check("negative: unshifted col-17 diverges from canonical in >=1 used month",
+      diverges(v2, c_nom),
+      f"max rel diff {max(abs(a - b) / max(abs(b), 1e-300) for a, b in zip(v2, c_nom)):.3e}")
+
+# negative variant 3: month parsed as round(frac*12) instead of round(frac*100)
+bad_parse = [i for i in range(j + 1)
+             if not (1 <= round((dates[i] - int(dates[i])) * 12) <= 12)
+             or round((dates[i] - int(dates[i])) * 12) != round((dates[i] - int(dates[i])) * 100)]
+check("negative: round(frac*12) month parse diverges from YYYY.MM axis in >=1 used month",
+      len(bad_parse) > 0,
+      f"first bad: {[(ym(i, dates), round((dates[i] - int(dates[i])) * 12)) for i in bad_parse[:5]]}")
+
+# negative variant 4: provisional tail not excluded (D=0 recursion, rows -> 2026.09)
+v4_real = [1.0]; v4_nom = [1.0]
+for i in range(1, n):
+    d = D[i] if D[i] is not None else 0.0
+    v4_real.append(v4_real[-1] * (0.6 * (RT[i] / RT[i - 1]) + 0.4 * (BR[i] / BR[i - 1])))
+    v4_nom.append(v4_nom[-1] * (0.6 * ((P[i] + d / 12) / P[i - 1]) + 0.4 * BM[i - 1]))
+check("negative: non-excluded provisional tail diverges from canonical in >=1 used month",
+      diverges(v4_nom, c_nom),
+      f"row count {len(v4_nom)} vs canonical {len(c_nom)}")
+
+# byte-consistency with the committed artifact (in-memory reconstruction)
+def rebuild_csv_bytes(real, nom, labels):
+    lines = ["date,real,nominal"]
+    for lab, rv, nv in zip(labels, real, nom):
+        lines.append(f"{lab},{rv!r},{nv!r}")
+    return ("\n".join(lines) + "\n").encode("utf-8")
+
+csv_path = Path(__file__).resolve().parent.parent / "artifacts" / "series" / "canonical_60_40_monthly_v1.csv"
+if csv_path.is_file():
+    check("committed CSV byte-identical to in-memory canonical reconstruction",
+          csv_path.read_bytes() == rebuild_csv_bytes(c_real, c_nom, [ym(i, dates) for i in range(j + 1)]),
+          f"{csv_path.stat().st_size} bytes")
+else:
+    check("committed CSV byte-consistency (skipped: artifact not present)",
+          True, "rebuild via `uv run python scripts/pipeline.py`")
+
 # ---------------------------------------------------------------- report
 fails = 0
 for name, ok, detail in RESULTS:
