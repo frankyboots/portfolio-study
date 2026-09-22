@@ -97,10 +97,26 @@ def run_series_stage() -> int:
     return build_series(REPO_ROOT)
 
 
+def run_comparator_stage() -> int:
+    """Stage: build the annual-rebalance comparator and diff artifacts.
+
+    Imports the builder in-process; same ``sys.path`` bootstrap as the
+    ``series`` stage so ``analysis.series`` resolves when the runner is
+    launched as ``python scripts/pipeline.py``.
+    """
+    root_str = str(REPO_ROOT)
+    if root_str not in sys.path:
+        sys.path.insert(0, root_str)
+    from analysis.series.rebalance_comparator import build_comparator
+
+    return build_comparator(REPO_ROOT)
+
+
 #: Ordered pipeline stages; later stories append here.
 STAGES: list[tuple[str, Callable[[], int]]] = [
     ("import-wall", run_import_wall_check),
     ("series", run_series_stage),
+    ("comparator", run_comparator_stage),
 ]
 
 

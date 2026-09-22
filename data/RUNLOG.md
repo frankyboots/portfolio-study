@@ -8,7 +8,7 @@ dataset is only valid against the vintage it was measured in.
 1. Scrape `https://shillerdata.com/` for the current CDN blob href (`?ver=` rotates).
 2. Download; compute `sha256` + byte size; compare against §1.1 pin and the last entry below.
 3. Read BIFF metadata (olefile `get_metadata()`) + last-row date + K = last CPI.
-4. Run `analysis/validate_data_md.py` (92 checks) against the file on disk.
+4. Run `analysis/validate_data_md.py` (101 checks) against the file on disk.
 5. Append an entry. If the file changed since the last entry: re-run the suite
    (it was verified against the old vintage), diff cell-by-cell, and update
    DATA.md §1.1 pin + any vintage-sensitive numbers (K, last-row stats, tail
@@ -26,7 +26,7 @@ dataset is only valid against the vintage it was measured in.
 - last saved: <stamp> by <author>; created 2000-07-15
 - last row: YYYY.MM; K (last CPI): <K>
 - notes row: <verbatim>
-- suite: <n>/92 pass
+- suite: <n>/101 pass
 - delta: none | list of changed cells/columns and what it implies
 ```
 

@@ -694,6 +694,85 @@ else:
     check("committed CSV byte-consistency (skipped: artifact not present)",
           True, "rebuild via `uv run python scripts/pipeline.py`")
 
+# ---------------------------------------------------------------- comparator
+# Independent in-memory reconstruction of the calendar-year-end-rebalanced
+# 60/40 (the annual-rebalance comparator) and the annual-minus-
+# monthly diff, on the same shared endpoint: positive facts (endpoint, seed,
+# row count, diff = 0.0 at seed, annual differs from monthly somewhere),
+# byte-consistency with both committed CSVs, and one negative variant for
+# the rebalancing convention (wrong reset boundary: June instead of
+# January). Variants are in-memory only, never written.
+
+def month_of(i):
+    return int(round((dates[i] - int(dates[i])) * 100))
+
+def annual6040(reset_month):
+    """Calendar-year-end 60/40 with weights reset for month ``reset_month``
+    of each year (1 = the frozen convention): g = we*g_eq + wb*g_b, then
+    weights drift we <- we*g_eq/g, wb <- wb*g_b/g; real and nominal each
+    track their own weights on their own legs; both seed at 1.0."""
+    real = [1.0]; nom = [1.0]
+    wer, wbr = 0.6, 0.4  # real-series weights, starting at 0.6/0.4
+    wen, wbn = 0.6, 0.4
+    for i in range(1, j + 1):
+        if month_of(i) == reset_month:
+            wer, wbr = 0.6, 0.4
+            wen, wbn = 0.6, 0.4
+        geq_r = RT[i] / RT[i - 1]; gbo_r = BR[i] / BR[i - 1]
+        geq_n = (P[i] + D[i] / 12) / P[i - 1]; gbo_n = BM[i - 1]
+        gr = wer * geq_r + wbr * gbo_r
+        gn = wen * geq_n + wbn * gbo_n
+        real.append(real[-1] * gr)
+        nom.append(nom[-1] * gn)
+        wer = wer * geq_r / gr; wbr = wbr * gbo_r / gr
+        wen = wen * geq_n / gn; wbn = wbn * gbo_n / gn
+    return real, nom
+
+a_real, a_nom = annual6040(1)  # frozen convention: reset at each January
+comp_labels = [ym(i, dates) for i in range(j + 1)]
+d_real = [a - m for a, m in zip(a_real, c_real)]
+d_nom = [a - m for a, m in zip(a_nom, c_nom)]
+
+check("comparator endpoint = last month with all construction inputs = 2026.06 (shared with monthly)",
+      ym(j, dates) == "2026.06" and len(a_real) == j + 1, f"endpoint {ym(j, dates)}, {len(a_real)} rows")
+check("comparator row count = 1866 (1871.01 -> 2026.06)",
+      len(a_real) == 1866 and len(a_nom) == 1866, f"got {len(a_real)}")
+check("comparator seed month = 1871.01, both indices 1.0",
+      ym(0, dates) == "1871.01" and a_real[0] == 1.0 and a_nom[0] == 1.0,
+      f"{a_real[0]} / {a_nom[0]}")
+check("comparator diff = 0.0 exactly at seed 1871.01",
+      d_real[0] == 0.0 and d_nom[0] == 0.0, f"{d_real[0]} / {d_nom[0]}")
+check("comparator diff = 0.0 exactly at 1871.02 (first return month; both conventions on 0.6/0.4)",
+      d_real[1] == 0.0 and d_nom[1] == 0.0, f"{d_real[1]} / {d_nom[1]}")
+check("comparator: annual differs from monthly in >=1 used month (rel > 1e-12)",
+      diverges(a_real, c_real) or diverges(a_nom, c_nom),
+      f"max rel diff real {max(abs(x - y) for x, y in zip(a_real, c_real)) / max(c_real):.3e}")
+
+ann_csv_path = Path(__file__).resolve().parent.parent / "artifacts" / "series" / "canonical_60_40_annual_v1.csv"
+if ann_csv_path.is_file():
+    check("comparator: committed annual CSV byte-identical to in-memory annual reconstruction",
+          ann_csv_path.read_bytes() == rebuild_csv_bytes(a_real, a_nom, comp_labels),
+          f"{ann_csv_path.stat().st_size} bytes")
+else:
+    check("comparator: committed annual CSV byte-consistency (skipped: artifact not present)",
+          True, "rebuild via `uv run python scripts/pipeline.py`")
+
+diff_csv_path = Path(__file__).resolve().parent.parent / "artifacts" / "series" / "canonical_60_40_rebalance_diff_v1.csv"
+if diff_csv_path.is_file():
+    check("comparator: committed diff CSV byte-identical to in-memory annual-minus-monthly reconstruction",
+          diff_csv_path.read_bytes() == rebuild_csv_bytes(d_real, d_nom, comp_labels),
+          f"{diff_csv_path.stat().st_size} bytes")
+else:
+    check("comparator: committed diff CSV byte-consistency (skipped: artifact not present)",
+          True, "rebuild via `uv run python scripts/pipeline.py`")
+
+# negative variant: wrong reset boundary -- weights reset at each June
+# instead of each January must diverge from the annual build.
+vn_real, vn_nom = annual6040(6)
+check("comparator negative: June-reset variant diverges from annual in >=1 used month",
+      diverges(vn_real, a_real) or diverges(vn_nom, a_nom),
+      f"max rel diff real {max(abs(x - y) for x, y in zip(vn_real, a_real)) / max(a_real):.3e}")
+
 # ---------------------------------------------------------------- report
 fails = 0
 for name, ok, detail in RESULTS:

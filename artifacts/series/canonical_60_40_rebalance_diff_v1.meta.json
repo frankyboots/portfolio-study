@@ -1,0 +1,30 @@
+{
+  "index": "YYYY.MM",
+  "name": "canonical_60_40_rebalance_diff_v1",
+  "owner": "analysis.series.rebalance_comparator",
+  "row_count": 1866,
+  "serialization": "csv: utf-8, LF newlines, final newline, values via Python repr(); sidecar json: json.dumps(obj, indent=2, sort_keys=True) + trailing newline",
+  "shape_family": "long-table",
+  "summary": {
+    "nominal": {
+      "max_abs_diff": 29707.85890684533,
+      "max_abs_diff_month": "2026.06",
+      "terminal_diff": 29707.85890684533
+    },
+    "real": {
+      "max_abs_diff": 1108.7838082944818,
+      "max_abs_diff_month": "2026.06",
+      "terminal_diff": 1108.7838082944818
+    }
+  },
+  "units": {
+    "nominal": "growth-index points, decimal (annual-rebalanced level minus monthly-rebalanced level of the canonical 60/40; 0.0 at 1871.01)",
+    "real": "growth-index points, decimal (annual-rebalanced level minus monthly-rebalanced level of the canonical 60/40; 0.0 at 1871.01)"
+  },
+  "version": 1,
+  "vintage": {
+    "k": 333.8925,
+    "last_row": "2026.09",
+    "sha256": "044196dafe44c3030b2facbdea023975b3f6aa68b4e52f8f9bafc403e19589c1"
+  }
+}

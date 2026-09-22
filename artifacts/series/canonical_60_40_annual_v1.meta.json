@@ -1,0 +1,35 @@
+{
+  "data_quality_notes": [
+    "DATA.md \u00a77: the 2025.10 CPI value is Shiller's fill-in; BLS never released October 2025 CPI (2025 lapse in appropriations). 2026.08 and 2026.09 CPI values are Shiller estimates."
+  ],
+  "excluded_provisional": [
+    {
+      "month": "2026.07",
+      "reason": "required input(s) missing: D"
+    },
+    {
+      "month": "2026.08",
+      "reason": "required input(s) missing: D"
+    },
+    {
+      "month": "2026.09",
+      "reason": "required input(s) missing: D"
+    }
+  ],
+  "index": "YYYY.MM",
+  "name": "canonical_60_40_annual_v1",
+  "owner": "analysis.series.rebalance_comparator",
+  "row_count": 1866,
+  "serialization": "csv: utf-8, LF newlines, final newline, values via Python repr(); sidecar json: json.dumps(obj, indent=2, sort_keys=True) + trailing newline",
+  "shape_family": "long-table",
+  "units": {
+    "nominal": "growth index, decimal (calendar-year-end rebalanced 60/40 total return, nominal; base 1.0 at 1871.01)",
+    "real": "growth index, decimal (calendar-year-end rebalanced 60/40 total return, real; base 1.0 at 1871.01)"
+  },
+  "version": 1,
+  "vintage": {
+    "k": 333.8925,
+    "last_row": "2026.09",
+    "sha256": "044196dafe44c3030b2facbdea023975b3f6aa68b4e52f8f9bafc403e19589c1"
+  }
+}

@@ -64,6 +64,7 @@ def test_pipeline_happy_path_exits_zero_with_envelope_and_stage() -> None:
         assert var in result.stdout
     assert "stage 'import-wall': OK" in result.stdout
     assert "stage 'series': OK" in result.stdout
+    assert "stage 'comparator': OK" in result.stdout
     assert "pipeline: all stages OK" in result.stdout
 
 
