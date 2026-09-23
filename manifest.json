@@ -1,0 +1,113 @@
+{
+  "artifacts": {
+    "canonical_60_40_annual_v1": {
+      "data_path": "artifacts/series/canonical_60_40_annual_v1.csv",
+      "data_sha256": "f2eaa61ce7812bd891c0622bb4ebeed20426c1e6df0f7650258e3594a4f2cc2d",
+      "index": "YYYY.MM",
+      "meta_path": "artifacts/series/canonical_60_40_annual_v1.meta.json",
+      "meta_sha256": "a9610697b0d7cb460766a2884f26ec9ef1547bec538cbbec4a048b774220dc7d",
+      "name": "canonical_60_40_annual_v1",
+      "owner": "analysis.series.rebalance_comparator",
+      "serialization": "csv: utf-8, LF newlines, final newline, values via Python repr(); sidecar json: json.dumps(obj, indent=2, sort_keys=True) + trailing newline",
+      "shape_family": "long-table",
+      "units": {
+        "nominal": "growth index, decimal (calendar-year-end rebalanced 60/40 total return, nominal; base 1.0 at 1871.01)",
+        "real": "growth index, decimal (calendar-year-end rebalanced 60/40 total return, real; base 1.0 at 1871.01)"
+      },
+      "version": 1
+    },
+    "canonical_60_40_monthly_v1": {
+      "data_path": "artifacts/series/canonical_60_40_monthly_v1.csv",
+      "data_sha256": "806e8f7249dec312fa9b3f98b8d37831e6d054e07181f71dd84d57653e061a9f",
+      "index": "YYYY.MM",
+      "meta_path": "artifacts/series/canonical_60_40_monthly_v1.meta.json",
+      "meta_sha256": "016f96448f0efb85a5329f2bea551c64fc59a22fc71b769f5db00b2a1fff40ae",
+      "name": "canonical_60_40_monthly_v1",
+      "owner": "analysis.series.canonical_60_40",
+      "serialization": "csv: utf-8, LF newlines, final newline, values via Python repr(); sidecar json: json.dumps(obj, indent=2, sort_keys=True) + trailing newline",
+      "shape_family": "long-table",
+      "units": {
+        "nominal": "growth index, decimal (monthly-rebalanced 60/40 total return, nominal; base 1.0 at 1871.01)",
+        "real": "growth index, decimal (monthly-rebalanced 60/40 total return, real; base 1.0 at 1871.01)"
+      },
+      "version": 1
+    },
+    "canonical_60_40_rebalance_diff_v1": {
+      "data_path": "artifacts/series/canonical_60_40_rebalance_diff_v1.csv",
+      "data_sha256": "e89b095bc7c23bd56c2727b20cdbdf20f6b20fd9b9fd5ea0e26a4d8871b516cc",
+      "index": "YYYY.MM",
+      "meta_path": "artifacts/series/canonical_60_40_rebalance_diff_v1.meta.json",
+      "meta_sha256": "3c9afe0e6bbd096b4153f0f736bb9377aba59fb9c5be33c493d618a65e6e0dbc",
+      "name": "canonical_60_40_rebalance_diff_v1",
+      "owner": "analysis.series.rebalance_comparator",
+      "serialization": "csv: utf-8, LF newlines, final newline, values via Python repr(); sidecar json: json.dumps(obj, indent=2, sort_keys=True) + trailing newline",
+      "shape_family": "long-table",
+      "units": {
+        "nominal": "growth-index points, decimal (annual-rebalanced level minus monthly-rebalanced level of the canonical 60/40; 0.0 at 1871.01)",
+        "real": "growth-index points, decimal (annual-rebalanced level minus monthly-rebalanced level of the canonical 60/40; 0.0 at 1871.01)"
+      },
+      "version": 1
+    }
+  },
+  "build": {
+    "head": "a8971e03d8e81bbd4419a81bacd5c3acdea183de"
+  },
+  "edition": null,
+  "gates": [
+    {
+      "gate": 1,
+      "name": "vintage integrity",
+      "result": "pass",
+      "runner": "scripts/check_vintage_integrity.py"
+    },
+    {
+      "gate": 2,
+      "name": "validation suite",
+      "result": "pass",
+      "runner": "analysis/validate_data_md.py"
+    },
+    {
+      "gate": 3,
+      "name": "repro",
+      "result": "pass",
+      "runner": "scripts/check_repro.py"
+    },
+    {
+      "gate": 4,
+      "name": "accessibility floor",
+      "result": "pass",
+      "runner": "scripts/check_accessibility_floor.py"
+    },
+    {
+      "gate": 5,
+      "name": "render order",
+      "result": "pass",
+      "runner": "scripts/check_render_order.py"
+    },
+    {
+      "gate": 6,
+      "name": "cross-doc consistency",
+      "result": "pass",
+      "runner": "scripts/check_crossdoc_consistency.py"
+    },
+    {
+      "gate": 7,
+      "name": "export freshness",
+      "result": "pass",
+      "runner": "scripts/check_export_freshness.py"
+    },
+    {
+      "gate": 8,
+      "name": "import wall",
+      "result": "pass",
+      "runner": "scripts/check_import_walls.py"
+    }
+  ],
+  "render_registry": [],
+  "schema_version": "1",
+  "vintage": {
+    "k": 333.8925,
+    "last_row": "2026.09",
+    "sha256": "044196dafe44c3030b2facbdea023975b3f6aa68b4e52f8f9bafc403e19589c1"
+  }
+}
