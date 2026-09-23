@@ -69,6 +69,18 @@ def test_pipeline_happy_path_exits_zero_with_envelope_and_stage(
         )
     (staged / "data").mkdir()
     shutil.copy2(REPO_ROOT / "data" / "ie_data.xls", staged / "data" / "ie_data.xls")
+    # The ledger: the vintage-integrity stage reads it (latest-entry coverage
+    # and override stanzas) and must leave it untouched on a steady tree.
+    shutil.copy2(REPO_ROOT / "data" / "RUNLOG.md", staged / "data" / "RUNLOG.md")
+
+    # No-writes-to-repo property: the repo's ledger and committed artifacts
+    # are byte-identical after the run (1.3's VG1 lesson).
+    repo_runlog_before = (REPO_ROOT / "data" / "RUNLOG.md").read_bytes()
+    repo_artifacts_before = {
+        p: p.read_bytes()
+        for p in sorted((REPO_ROOT / "artifacts").rglob("*"))
+        if p.is_file()
+    }
 
     result = subprocess.run(
         [sys.executable, str(staged / "scripts" / "pipeline.py")],
@@ -82,7 +94,16 @@ def test_pipeline_happy_path_exits_zero_with_envelope_and_stage(
     assert "stage 'import-wall': OK" in result.stdout
     assert "stage 'series': OK" in result.stdout
     assert "stage 'comparator': OK" in result.stdout
+    assert "stage 'vintage-integrity': OK" in result.stdout
+    assert "OK: vintage integrity" in result.stdout
     assert "pipeline: all stages OK" in result.stdout
+
+    assert (REPO_ROOT / "data" / "RUNLOG.md").read_bytes() == repo_runlog_before
+    assert {
+        p: p.read_bytes()
+        for p in sorted((REPO_ROOT / "artifacts").rglob("*"))
+        if p.is_file()
+    } == repo_artifacts_before
 
 
 def test_failing_stage_returns_code_and_names_stage() -> None:

@@ -84,6 +84,7 @@ def _synthetic_vintage() -> shiller_io.Vintage:
         CPI=tuple(100.0 * (1.75**i) for i in range(n)),
         BM=(0.875, 0.875, 0.875, 0.875, None),  # last row unused by the engine
         BR=tuple(100.0 * (0.5**i) for i in range(n)),
+        notes_row="",
     )
 
 

@@ -112,11 +112,37 @@ def run_comparator_stage() -> int:
     return build_comparator(REPO_ROOT)
 
 
+def run_vintage_integrity_stage() -> int:
+    """Stage: vintage-integrity (after all artifact stages).
+
+    First the LATEST-STALE fallback: when the pin was already updated
+    without a recorder run, the missing ledger entry is appended here
+    via the shared renderer (the suite subprocess runs only on that
+    append path). Then the gate verdict decides: a cross-Vintage mix
+    without a logged override fails the build.
+    """
+    root_str = str(REPO_ROOT)
+    if root_str not in sys.path:
+        sys.path.insert(0, root_str)
+    from analysis import vintage_ledger
+
+    if vintage_ledger.ensure_ledger_covers_vintage(REPO_ROOT):
+        print(
+            "vintage-integrity: latest ledger entry did not cover the on-disk "
+            "vintage; appended the machine entry (suite captured at append time)"
+        )
+    ok, lines = vintage_ledger.check_vintage_integrity(REPO_ROOT)
+    for line in lines:
+        print(line, file=sys.stderr if not ok else None)
+    return 0 if ok else 1
+
+
 #: Ordered pipeline stages; later stories append here.
 STAGES: list[tuple[str, Callable[[], int]]] = [
     ("import-wall", run_import_wall_check),
     ("series", run_series_stage),
     ("comparator", run_comparator_stage),
+    ("vintage-integrity", run_vintage_integrity_stage),
 ]
 
 

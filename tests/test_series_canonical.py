@@ -164,6 +164,7 @@ def test_mid_series_none_fails_naming_month_and_column() -> None:
         CPI=tuple(100.0 for _ in range(n)),
         BM=tuple(1.0 for _ in range(n)),
         BR=tuple(1.0 for _ in range(n)),
+        notes_row="",
     )
     with pytest.raises(BuildError, match=r"1871\.06.*'D'"):
         compute(v)
@@ -185,6 +186,7 @@ def test_mid_series_none_in_bm_shift_fails_naming_month_and_column() -> None:
         CPI=tuple(100.0 for _ in range(n)),
         BM=tuple(bm),
         BR=tuple(1.0 for _ in range(n)),
+        notes_row="",
     )
     with pytest.raises(BuildError, match=r"1871\.06.*'BM"):
         compute(v)
@@ -206,6 +208,7 @@ def test_bm_identity_violation_fails() -> None:
         CPI=tuple(100.0 for _ in range(n)),
         BM=tuple(bm),
         BR=tuple(1.0 for _ in range(n)),
+        notes_row="",
     )
     with pytest.raises(BuildError, match=r"BM identity violated at 1871\.03"):
         compute(v)

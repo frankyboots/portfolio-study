@@ -3,9 +3,9 @@
 Sole xlrd I/O choke point for the whole study: every consumer of the
 dataset reads it through this module. It enforces the pinned vintage
 (sha256), slices the documented data rows, normalizes blank/``"NA"``
-cells to ``None``, and parses the ``YYYY.MM`` decimal date axis with
+cells to ``None``, parses the ``YYYY.MM`` decimal date axis with
 ``month = round((dt - year) * 100)`` -- never float-arithmetic on the
-fraction.
+fraction -- and exposes the free-text notes row (last sheet row).
 """
 
 from __future__ import annotations
@@ -72,13 +72,17 @@ class Vintage:
     CPI: tuple[float | None, ...]  # col 4
     BM: tuple[float | None, ...]  # col 17
     BR: tuple[float | None, ...]  # col 18
+    notes_row: str  # last sheet row (nrows-1), non-blank segments joined with " / "
 
 
-def load_vintage(root: Path) -> Vintage:
+def load_vintage(root: Path, pin: str | None = VINTAGE_SHA256) -> Vintage:
     """Read and pin-check the dataset at ``root/data/ie_data.xls``.
 
     Raises :class:`VintageError` (naming the re-pull procedure, or the
     expected/actual sha256) before any sheet data is consumed.
+    ``pin=None`` skips the sha256 check -- the pin-optional facts path
+    used only by the vintage ledger recorder
+    (``analysis/vintage_ledger.py``); the default stays strict.
     """
     path = root.joinpath(*XLS_RELPATH)
     if not path.is_file():
@@ -87,10 +91,8 @@ def load_vintage(root: Path) -> Vintage:
             f"data/RUNLOG.md (shillerdata.com CDN; do not use the stale Yale mirror)"
         )
     actual = _sha256(path)
-    if actual != VINTAGE_SHA256:
-        raise VintageError(
-            f"vintage sha256 mismatch: expected {VINTAGE_SHA256}, got {actual}"
-        )
+    if pin is not None and actual != pin:
+        raise VintageError(f"vintage sha256 mismatch: expected {pin}, got {actual}")
 
     wb = xlrd.open_workbook(str(path))
     sheet = wb.sheet_by_name(DATA_SHEET)
@@ -116,6 +118,12 @@ def load_vintage(root: Path) -> Vintage:
     k_cells = [c for c in cols[3] if c is not None]
     if not k_cells:
         raise VintageError("no CPI values found (column 4)")
+    # The last sheet row is a free-text notes row, not a data row.
+    notes_segments = [
+        str(value).strip()
+        for value in sheet.row_values(nrows - 1)
+        if str(value).strip()
+    ]
     return Vintage(
         sha256=actual,
         last_row=dates[-1],
@@ -127,4 +135,5 @@ def load_vintage(root: Path) -> Vintage:
         CPI=tuple(cols[3]),
         BM=tuple(cols[4]),
         BR=tuple(cols[5]),
+        notes_row=" / ".join(notes_segments),
     )
