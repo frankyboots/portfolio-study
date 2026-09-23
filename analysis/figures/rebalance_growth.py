@@ -118,6 +118,34 @@ def _parse_dates(decimals: pd.Series) -> pd.Series:
     return years + (months - 1) / 12.0
 
 
+MONTH_NAMES = (
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+)
+
+
+def _humanize_ym(token: str) -> str:
+    """Native ``YYYY.MM`` token -> "Month YYYY" prose (alt-text voice).
+
+    String split plus the month-name table, never float arithmetic:
+    the dataset encodes months as decimal codes and a float parse
+    regressed here before. Structured fields (``range``) keep the
+    native tokens; only the prose layer humanizes.
+    """
+    year, _, month = token.partition(".")
+    return f"{MONTH_NAMES[int(month) - 1]} {year}"
+
+
 def _fmt(value: float) -> str:
     """Display formatting for alt-text numbers: 4 significant figures."""
     if abs(value) >= 1000:
@@ -159,6 +187,7 @@ def _alt_text(annual: pd.DataFrame, monthly: pd.DataFrame) -> dict:
     """The EXPERIENCE.md v1 alt-text record, computed from the artifacts."""
     start = str(annual["date"].iloc[0])
     end = str(annual["date"].iloc[-1])
+    start_h, end_h = _humanize_ym(start), _humanize_ym(end)
 
     a_end, m_end = float(annual["real"].iloc[-1]), float(monthly["real"].iloc[-1])
     # The "(both series)" claim is checked against BOTH series: the sets
@@ -176,26 +205,27 @@ def _alt_text(annual: pd.DataFrame, monthly: pd.DataFrame) -> dict:
     if sub_a:
         sub1 = annual[annual["real"] < 1.0]
         sub1_pts = ", ".join(
-            f"{_fmt(float(v))} at {d}" for d, v in zip(sub1["date"], sub1["real"])
+            f"{_fmt(float(v))} at {_humanize_ym(str(d))}"
+            for d, v in zip(sub1["date"], sub1["real"])
         )
         sub1_sentence = f"the only sub-1.0 index readings are {sub1_pts} (both series)"
     else:
         sub1_sentence = "no sub-1.0 index readings"
     extremes = (
         f"Extremes: {sub1_sentence}; the span maxima are the terminal values — "
-        f"annual {_fmt(a_end)}, monthly {_fmt(m_end)} at {end}."
+        f"annual {_fmt(a_end)}, monthly {_fmt(m_end)} at {end_h}."
     )
     trend = (
         f"Annual-rebalanced real 60/40 grows from "
-        f"{_fmt(float(annual['real'].iloc[0]))} at {start} to {_fmt(a_end)} at "
-        f"{end}; monthly-rebalanced grows from "
+        f"{_fmt(float(annual['real'].iloc[0]))} at {start_h} to {_fmt(a_end)} at "
+        f"{end_h}; monthly-rebalanced grows from "
         f"{_fmt(float(monthly['real'].iloc[0]))} to {_fmt(m_end)} over the same "
         f"span, so annual rebalancing ends {_fmt(a_end - m_end)} index points "
         "above monthly."
     )
     alt_text = (
         f"Line chart of 2 real 60/40 growth-index series "
-        f"(annual- and monthly-rebalanced), {start} to {end}. "
+        f"(annual- and monthly-rebalanced), {start_h} to {end_h}. "
         f"Axes: {X_LABEL}, {Y_LABEL} (log scale). {trend} {extremes} "
         f"2 series: monthly-rebalanced (primary, solid) and "
         f"annual-rebalanced (baseline, dashed)."
@@ -388,12 +418,20 @@ def build_figure(root: Path) -> int:
     ax.set_yscale("log")
     ax.set_xlim(X_MIN, X_MAX)
     ax.set_ylim(Y_MIN, Y_MAX)
-    ax.set_xlabel(X_LABEL)
+    # Both axis titles pinned to the tick-label 13 pt caption-class
+    # basis (the x title would otherwise inherit rc axes.labelsize
+    # 14.0); the axis_titles record is measured on the glyph basis.
+    ax.set_xlabel(X_LABEL, size=13.0)
     ax.set_ylabel(Y_LABEL, size=13.0)
     ax.tick_params(axis="both", which="major", labelsize=13.0)
     for spine in ax.spines.values():
         spine.set_edgecolor(style.token("rule"))
         spine.set_linewidth(0.75)
+    # DESIGN.md register: hairline axes, no panel borders. The rc set
+    # carries no spine-visibility entry, so the per-axes loop is the
+    # pin point (Epic 2 may lift this into style.apply_style).
+    for spine_name in ("top", "right"):
+        ax.spines[spine_name].set_visible(False)
 
     # Direct labels in the top-right band (fig fractions), each joined
     # to its line by a straight vertical leader rule.
@@ -518,9 +556,12 @@ def build_figure(root: Path) -> int:
         spec["id"]: style.measure_text_px(labels[spec["id"]]) for spec in SERIES
     }
     tick_px = style.measure_text_px(tick_probe)
+    # Glyph basis (rotation 0): the record must carry the font height,
+    # not the rotated string's width, so gate 4's caption-class floor
+    # judges the right dimension for both titles.
     title_px = max(
-        style.measure_text_px(ax.xaxis.get_label()),
-        style.measure_text_px(ax.yaxis.get_label()),
+        style.measure_text_glyph_px(ax.xaxis.get_label()),
+        style.measure_text_glyph_px(ax.yaxis.get_label()),
     )
     # The stamp's legibility is its per-line height (the block is a
     # fixed four-line corner render of the one-line record string).

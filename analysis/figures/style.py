@@ -210,10 +210,30 @@ def measure_text_px(text) -> float:
     Measures the real renderer extent (``get_window_extent`` on the
     active backend's renderer), never a declared constant: the value
     moves with the artist's font size and content, and gate 4 checks
-    it against the display-px floors.
+    it against the display-px floors. Rotation-aware layout guards
+    (canvas-escape, y-title/stamp collision) use this function.
     """
     renderer = text.figure.canvas.get_renderer()
     return float(text.get_window_extent(renderer).height)
+
+
+def measure_text_glyph_px(text) -> float:
+    """The font-glyph height of a text artist, in canvas px.
+
+    ``measure_text_px`` on a rotated label returns the string's
+    *width* (the rotated extent's height), which would let a
+    caption-class floor pass on the wrong dimension. Measure on the
+    same live artist at rotation 0, restoring the artist's rotation
+    afterward: a single-line extent height proportional to font size,
+    the same basis as the tick-label probe.
+    """
+    renderer = text.figure.canvas.get_renderer()
+    rotation = text.get_rotation()
+    text.set_rotation(0.0)
+    try:
+        return float(text.get_window_extent(renderer).height)
+    finally:
+        text.set_rotation(rotation)
 
 
 def measure_line_px(line) -> float:
