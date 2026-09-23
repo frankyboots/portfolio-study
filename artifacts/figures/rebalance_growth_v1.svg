@@ -397,7 +397,7 @@ z
     </g>
     <g id="text_8">
      <!-- Year -->
-     <g style="fill: #0b0906" transform="translate(189.61 231.727) scale(0.14 -0.14)">
+     <g style="fill: #0b0906" transform="translate(190.595 230.691) scale(0.13 -0.13)">
       <defs>
        <path id="SourceSerif4Roman-Regular-1a" d="M 1069 0 
 L 1069 262 
@@ -3400,18 +3400,8 @@ L 52.2 87
 " style="fill: none; stroke: #8a7e63; stroke-width: 0.75; stroke-linejoin: miter; stroke-linecap: square"/>
    </g>
    <g id="patch_4">
-    <path d="M 354.6 188.4 
-L 354.6 87 
-" style="fill: none; stroke: #8a7e63; stroke-width: 0.75; stroke-linejoin: miter; stroke-linecap: square"/>
-   </g>
-   <g id="patch_5">
     <path d="M 52.2 188.4 
 L 354.6 188.4 
-" style="fill: none; stroke: #8a7e63; stroke-width: 0.75; stroke-linejoin: miter; stroke-linecap: square"/>
-   </g>
-   <g id="patch_6">
-    <path d="M 52.2 87 
-L 354.6 87 
 " style="fill: none; stroke: #8a7e63; stroke-width: 0.75; stroke-linejoin: miter; stroke-linecap: square"/>
    </g>
   </g>
@@ -4170,7 +4160,7 @@ z
     <use xlink:href="#IBMPlexMono-3" transform="translate(1015.03125 0)"/>
     <use xlink:href="#IBMPlexMono-a8" transform="translate(1075.03125 0)"/>
    </g>
-   <!-- BUILD-HEAD 7031272 -->
+   <!-- BUILD-HEAD dd4375d -->
    <g style="fill: #6b1212" transform="translate(13.543915 37.715057) rotate(-358) scale(0.11 -0.11)">
     <defs>
      <path id="IBMPlexMono-23" d="M 563 4467 
@@ -4279,16 +4269,56 @@ L 2790 0
 L 2790 2029 
 z
 " transform="scale(0.015625)"/>
-     <path id="IBMPlexMono-45" d="M 1107 0 
-L 2854 4006 
-L 896 4006 
-L 896 3174 
-L 416 3174 
-L 416 4467 
-L 3398 4467 
-L 3398 3994 
-L 1683 0 
-L 1107 0 
+     <path id="IBMPlexMono-8" d="M 2720 538 
+L 2694 538 
+Q 2374 -77 1677 -77 
+Q 1069 -77 726 377 
+Q 384 832 384 1651 
+Q 384 2470 726 2924 
+Q 1069 3379 1677 3379 
+Q 2374 3379 2694 2765 
+L 2720 2765 
+L 2720 4736 
+L 3232 4736 
+L 3232 0 
+L 2720 0 
+L 2720 538 
+z
+M 1875 378 
+Q 2048 378 2201 422 
+Q 2355 467 2470 553 
+Q 2586 640 2653 765 
+Q 2720 890 2720 1056 
+L 2720 2246 
+Q 2720 2413 2653 2537 
+Q 2586 2662 2470 2748 
+Q 2355 2835 2201 2880 
+Q 2048 2925 1875 2925 
+Q 1427 2925 1180 2653 
+Q 934 2381 934 1933 
+L 934 1370 
+Q 934 922 1180 650 
+Q 1427 378 1875 378 
+z
+" transform="scale(0.015625)"/>
+     <path id="IBMPlexMono-42" d="M 2419 0 
+L 2419 877 
+L 218 877 
+L 218 1350 
+L 2150 4467 
+L 2931 4467 
+L 2931 1318 
+L 3597 1318 
+L 3597 877 
+L 2931 877 
+L 2931 0 
+L 2419 0 
+z
+M 698 1318 
+L 2419 1318 
+L 2419 4051 
+L 2394 4051 
+L 698 1318 
 z
 " transform="scale(0.015625)"/>
      <path id="IBMPlexMono-41" d="M 1728 2573 
@@ -4340,19 +4370,52 @@ L 1235 2573
 L 1728 2573 
 z
 " transform="scale(0.015625)"/>
-     <path id="IBMPlexMono-3f" d="M 544 0 
-L 544 467 
-L 1824 467 
-L 1824 4070 
-L 1779 4070 
-L 653 3021 
-L 339 3360 
-L 1523 4467 
-L 2362 4467 
-L 2362 467 
-L 3539 467 
-L 3539 0 
-L 544 0 
+     <path id="IBMPlexMono-45" d="M 1107 0 
+L 2854 4006 
+L 896 4006 
+L 896 3174 
+L 416 3174 
+L 416 4467 
+L 3398 4467 
+L 3398 3994 
+L 1683 0 
+L 1107 0 
+z
+" transform="scale(0.015625)"/>
+     <path id="IBMPlexMono-43" d="M 3206 4000 
+L 1210 4000 
+L 1082 2291 
+L 1126 2291 
+Q 1293 2515 1497 2646 
+Q 1702 2778 2061 2778 
+Q 2355 2778 2601 2685 
+Q 2848 2592 3027 2413 
+Q 3206 2234 3308 1981 
+Q 3411 1728 3411 1402 
+Q 3411 1075 3308 803 
+Q 3206 531 3008 336 
+Q 2810 141 2528 32 
+Q 2246 -77 1888 -77 
+Q 1606 -77 1385 -13 
+Q 1165 51 995 160 
+Q 826 269 698 403 
+Q 570 538 467 685 
+L 870 992 
+Q 960 858 1053 749 
+Q 1146 640 1267 560 
+Q 1389 480 1542 435 
+Q 1696 390 1901 390 
+Q 2362 390 2608 640 
+Q 2854 890 2854 1331 
+L 2854 1382 
+Q 2854 1824 2604 2073 
+Q 2355 2323 1888 2323 
+Q 1568 2323 1392 2214 
+Q 1216 2106 1069 1946 
+L 614 2010 
+L 774 4467 
+L 3206 4467 
+L 3206 4000 
 z
 " transform="scale(0.015625)"/>
     </defs>
@@ -4367,13 +4430,13 @@ z
     <use xlink:href="#IBMPlexMono-22" transform="translate(480 0)"/>
     <use xlink:href="#IBMPlexMono-25" transform="translate(540 0)"/>
     <use xlink:href="#IBMPlexMono-3" transform="translate(600 0)"/>
-    <use xlink:href="#IBMPlexMono-45" transform="translate(660 0)"/>
-    <use xlink:href="#IBMPlexMono-3c" transform="translate(720 0)"/>
-    <use xlink:href="#IBMPlexMono-41" transform="translate(780 0)"/>
-    <use xlink:href="#IBMPlexMono-3f" transform="translate(840 0)"/>
-    <use xlink:href="#IBMPlexMono-40" transform="translate(900 0)"/>
-    <use xlink:href="#IBMPlexMono-45" transform="translate(960 0)"/>
-    <use xlink:href="#IBMPlexMono-40" transform="translate(1020 0)"/>
+    <use xlink:href="#IBMPlexMono-8" transform="translate(660 0)"/>
+    <use xlink:href="#IBMPlexMono-8" transform="translate(720 0)"/>
+    <use xlink:href="#IBMPlexMono-42" transform="translate(780 0)"/>
+    <use xlink:href="#IBMPlexMono-41" transform="translate(840 0)"/>
+    <use xlink:href="#IBMPlexMono-45" transform="translate(900 0)"/>
+    <use xlink:href="#IBMPlexMono-43" transform="translate(960 0)"/>
+    <use xlink:href="#IBMPlexMono-8" transform="translate(1020 0)"/>
    </g>
    <!-- analysis/figures/ -->
    <g style="fill: #6b1212" transform="translate(13.044853 52.006346) rotate(-358) scale(0.11 -0.11)">

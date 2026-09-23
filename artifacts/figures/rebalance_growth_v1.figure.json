@@ -1,13 +1,13 @@
 {
   "alt_text": {
-    "alt_text": "Line chart of 2 real 60/40 growth-index series (annual- and monthly-rebalanced), 1871.01 to 2026.06. Axes: Year, Real growth index (log scale). Annual-rebalanced real 60/40 grows from 1.00 at 1871.01 to 4,977 at 2026.06; monthly-rebalanced grows from 1.00 to 3,868 over the same span, so annual rebalancing ends 1,109 index points above monthly. Extremes: the only sub-1.0 index readings are 0.983 at 1871.02, 0.987 at 1871.03 (both series); the span maxima are the terminal values \u2014 annual 4,977, monthly 3,868 at 2026.06. 2 series: monthly-rebalanced (primary, solid) and annual-rebalanced (baseline, dashed).",
+    "alt_text": "Line chart of 2 real 60/40 growth-index series (annual- and monthly-rebalanced), January 1871 to June 2026. Axes: Year, Real growth index (log scale). Annual-rebalanced real 60/40 grows from 1.00 at January 1871 to 4,977 at June 2026; monthly-rebalanced grows from 1.00 to 3,868 over the same span, so annual rebalancing ends 1,109 index points above monthly. Extremes: the only sub-1.0 index readings are 0.983 at February 1871, 0.987 at March 1871 (both series); the span maxima are the terminal values \u2014 annual 4,977, monthly 3,868 at June 2026. 2 series: monthly-rebalanced (primary, solid) and annual-rebalanced (baseline, dashed).",
     "axis": {
       "scale": "log",
       "x_label": "Year",
       "y_label": "Real growth index"
     },
     "chart_type": "line",
-    "extremes": "Extremes: the only sub-1.0 index readings are 0.983 at 1871.02, 0.987 at 1871.03 (both series); the span maxima are the terminal values \u2014 annual 4,977, monthly 3,868 at 2026.06.",
+    "extremes": "Extremes: the only sub-1.0 index readings are 0.983 at February 1871, 0.987 at March 1871 (both series); the span maxima are the terminal values \u2014 annual 4,977, monthly 3,868 at June 2026.",
     "pairing_applies": false,
     "range": {
       "end": "2026.06",
@@ -28,7 +28,7 @@
         "units": "growth index, decimal (base 1.0 at 1871.01)"
       }
     ],
-    "trend": "Annual-rebalanced real 60/40 grows from 1.00 at 1871.01 to 4,977 at 2026.06; monthly-rebalanced grows from 1.00 to 3,868 over the same span, so annual rebalancing ends 1,109 index points above monthly."
+    "trend": "Annual-rebalanced real 60/40 grows from 1.00 at January 1871 to 4,977 at June 2026; monthly-rebalanced grows from 1.00 to 3,868 over the same span, so annual rebalancing ends 1,109 index points above monthly."
   },
   "builder": "analysis/figures/rebalance_growth.py",
   "canvas_px": {
@@ -80,9 +80,9 @@
     },
     {
       "class": "caption-class",
-      "display_px": 110.6640625,
+      "display_px": 18.565625000000008,
       "element": "axis_titles",
-      "render_px": 354.125
+      "render_px": 59.410000000000025
     },
     {
       "class": "mono-stamp",
@@ -134,7 +134,7 @@
     "canonical_60_40_monthly_v1",
     "canonical_60_40_annual_v1"
   ],
-  "stamp": "\u25ae VINTAGE 2026-09 \u00b7 BUILD-HEAD 7031272 \u00b7 analysis/figures/rebalance_growth.py",
+  "stamp": "\u25ae VINTAGE 2026-09 \u00b7 BUILD-HEAD dd4375d \u00b7 analysis/figures/rebalance_growth.py",
   "style_declarations": [
     {
       "element": "series_line",
