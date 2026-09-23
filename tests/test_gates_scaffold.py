@@ -9,6 +9,7 @@ additionally covers the committed-manifest render-registry contract
 
 import importlib.util
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -30,6 +31,29 @@ def run_cli(script: str, *args: str) -> subprocess.CompletedProcess[str]:
         capture_output=True,
         text=True,
         check=False,  # intentional: exit codes are asserted per test
+    )
+
+
+def run_cli_zero_args(
+    script: str,
+    staged_root: Path,
+) -> subprocess.CompletedProcess[str]:
+    """Zero-arg invocation against a staged root: the CLI must default to its own repo root.
+
+    The script is copied under ``staged_root/scripts/`` so its ``REPO_ROOT``
+    (``Path(__file__).resolve().parent.parent``) resolves to the staged
+    root instead of the real repo, keeping the assertion about the CLI
+    default, not about repo state.
+    """
+    script_copy = staged_root / "scripts" / script
+    script_copy.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(REPO_ROOT / "scripts" / script, script_copy)
+    return subprocess.run(
+        [sys.executable, str(script_copy)],
+        capture_output=True,
+        text=True,
+        check=False,
+        cwd=str(staged_root),  # intentional: no [root] argument, no CWD shortcut either
     )
 
 
@@ -74,6 +98,26 @@ def test_gate_clis_usage_and_bad_root(tmp_path: Path) -> None:
         assert "no such directory" in bad_root.stderr
 
 
+def test_gate_clis_zero_args_default_to_repo_root(tmp_path: Path) -> None:
+    # USAGE row, zero-arg half: with no [root] argument the CLI resolves
+    # to the repo root it lives in. All five gates run against .git-less
+    # staged copies (config + artifacts + DATA.md = each gate's structural
+    # pass inputs), so the test pins the CLI default only and stays
+    # immune to future repo-tree changes (1.6's exports, future docs).
+    staged = stage_minimal(tmp_path)  # no .git tree
+    ok_lines = {
+        "check_accessibility_floor.py": "OK: accessibility floor",
+        "check_render_order.py": "OK: render order",
+        "check_crossdoc_consistency.py": "OK: cross-doc consistency",
+        "check_export_freshness.py": "OK: export freshness",
+        "check_repro.py": "SKIP: no git tree",
+    }
+    for script, ok_line in ok_lines.items():
+        result = run_cli_zero_args(script, staged)
+        assert result.returncode == 0, (script, result.stdout, result.stderr)
+        assert ok_line in result.stdout, (script, result.stdout)
+
+
 # ---------------------------------------------------------------- gate 4
 
 
@@ -113,6 +157,17 @@ def test_gate4_committed_set_via_git_when_git_present(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stderr
 
 
+def test_gate4_git_failure_is_loud_fail(tmp_path: Path) -> None:
+    # A .git directory that is not a real repository makes git ls-files
+    # fail: the gate must not read that as an empty committed set.
+    staged = stage_minimal(tmp_path)
+    (staged / ".git").mkdir()
+    result = run_cli("check_accessibility_floor.py", str(staged))
+    assert result.returncode == 1
+    assert "cannot list committed artifacts" in result.stderr
+    assert "not a git repository" in result.stderr
+
+
 # ---------------------------------------------------------------- gate 5
 
 
@@ -121,6 +176,18 @@ def test_gate5_no_git_is_structural_pass(tmp_path: Path) -> None:
     result = run_cli("check_render_order.py", str(staged))
     assert result.returncode == 0
     assert "structural pass" in result.stdout
+
+
+def test_gate5_cold_start_git_present_no_committed_manifest(tmp_path: Path) -> None:
+    # COLD_START row: a git tree exists but no manifest has ever been
+    # committed -> the git show read fails and the gate is a structural pass
+    # (the first post-1.5 run, before any manifest lands in HEAD).
+    staged = stage_minimal(tmp_path)
+    commit_all(staged)
+    assert not (staged / "manifest.json").exists()
+    result = run_cli("check_render_order.py", str(staged))
+    assert result.returncode == 0, result.stderr
+    assert "no committed manifest.json at HEAD -- structural pass" in result.stdout
 
 
 def _commit_manifest(staged: Path, manifest: dict) -> None:
@@ -186,6 +253,22 @@ def test_gate5_entry_without_string_route_fails(tmp_path: Path) -> None:
     result = run_cli("check_render_order.py", str(staged))
     assert result.returncode == 1
     assert "string 'route'" in result.stderr
+
+
+def test_gate5_committed_manifest_corrupt_fails(tmp_path: Path) -> None:
+    # Fail-safes on the committed manifest bytes themselves.
+    cases = [
+        ("{not valid json", "not valid JSON"),
+        ("[1, 2]", "not a JSON object"),
+        ('{"schema_version": "1"}', "has no artifacts object"),
+    ]
+    for i, (body, fragment) in enumerate(cases):
+        staged = stage_minimal(tmp_path / f"corrupt{i}")
+        staged.joinpath("manifest.json").write_text(body, encoding="utf-8")
+        commit_all(staged)
+        result = run_cli("check_render_order.py", str(staged))
+        assert result.returncode == 1, (i, result.stdout, result.stderr)
+        assert fragment in result.stderr, (i, result.stderr)
 
 
 # ---------------------------------------------------------------- gate 6
@@ -293,3 +376,63 @@ def test_gate7_committed_export_fails(tmp_path: Path) -> None:
     result = run_cli("check_export_freshness.py", str(staged))
     assert result.returncode == 1
     assert "manual/hero.png" in result.stderr
+
+
+def test_gate7_git_failure_is_loud_fail(tmp_path: Path) -> None:
+    staged = stage_minimal(tmp_path)
+    (staged / ".git").mkdir()
+    result = run_cli("check_export_freshness.py", str(staged))
+    assert result.returncode == 1
+    assert "cannot list committed exports" in result.stderr
+    assert "not a git repository" in result.stderr
+
+
+# ---------------------------------------------------------------- consistency
+
+
+def test_eight_gate_spelling_consistent_across_writer_runner_workflow() -> None:
+    """The eight (gate number, runner path) pairs must agree in all three copies:
+
+    - ``scripts/manifest.py`` ``GATES`` (the manifest's gate array);
+    - ``scripts/pipeline.py`` (``STAGE_TO_GATE`` covers 1-8 and each runner
+      is referenced by its owning stage);
+    - ``.github/workflows/edition-gates.yml`` (one ``uv run python`` step per
+      gate, in AD-8 order, and no ninth runner anywhere).
+    """
+    spec = importlib.util.spec_from_file_location(
+        "manifest_consistency", REPO_ROOT / "scripts" / "manifest.py"
+    )
+    assert spec is not None
+    manifest_mod = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(manifest_mod)
+    pairs = {n: runner for n, _name, runner in manifest_mod.GATES}
+    assert sorted(pairs) == list(range(1, 9))
+
+    # pipeline.py: the stage-to-gate map covers exactly gates 1-8, and every
+    # runner's stem is referenced by the pipeline source (subprocess basename
+    # for the gates the pipeline subprocesses; for gate 1, whose stage runs
+    # in-process, the stem matches the ``vintage_ledger.check_vintage_integrity``
+    # call the stage makes).
+    p_spec = importlib.util.spec_from_file_location(
+        "pipeline_consistency", REPO_ROOT / "scripts" / "pipeline.py"
+    )
+    assert p_spec is not None
+    pipeline_mod = importlib.util.module_from_spec(p_spec)
+    assert p_spec.loader is not None
+    p_spec.loader.exec_module(pipeline_mod)
+    assert sorted(pipeline_mod.STAGE_TO_GATE.values()) == list(range(1, 9))
+    assert set(pipeline_mod.STAGE_TO_GATE) <= {name for name, _ in pipeline_mod.STAGES}
+    pipeline_text = (REPO_ROOT / "scripts" / "pipeline.py").read_text(encoding="utf-8")
+    for runner in pairs.values():
+        assert Path(runner).stem in pipeline_text, (
+            f"runner {runner} not referenced in scripts/pipeline.py"
+        )
+
+    # workflow: the gates job's python invocations, in file order, are exactly
+    # the eight runners in AD-8 order -- and nothing else invokes a gate runner.
+    yml = (REPO_ROOT / ".github" / "workflows" / "edition-gates.yml").read_text(
+        encoding="utf-8"
+    )
+    gate_runs = re.findall(r"run: uv run python (\S+\.py)", yml)
+    assert gate_runs == [pairs[n] for n in range(1, 9)]

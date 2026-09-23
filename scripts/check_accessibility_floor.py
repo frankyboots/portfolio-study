@@ -35,8 +35,12 @@ SCAN_DIRS = ("artifacts", "web", "manual")
 EXPORT_SUFFIXES = (".png", ".svg")
 
 
-def export_files(root: Path) -> list[str]:
-    """Committed (or, without .git, on-disk) PNG/SVG exports under the scan dirs."""
+def export_files(root: Path) -> list[str] | None:
+    """Committed (or, without .git, on-disk) PNG/SVG exports under the scan dirs.
+
+    Returns ``None`` when the committed set could not be listed (git failure);
+    the FAIL line naming the git error is printed here, and ``main`` exits 1.
+    """
     names: list[str]
     if (root / ".git").exists():
         proc = subprocess.run(
@@ -45,6 +49,12 @@ def export_files(root: Path) -> list[str]:
             text=True,
             check=False,
         )
+        if proc.returncode != 0:
+            print(
+                f"FAIL: accessibility floor: cannot list committed artifacts: {proc.stderr.strip()}",
+                file=sys.stderr,
+            )
+            return None
         names = [line for line in proc.stdout.splitlines() if line]
     else:
         names = []
@@ -77,7 +87,10 @@ def main(argv: list[str] | None = None) -> int:
         violations.append(
             f"missing {rc_file.relative_to(root).as_posix()} (locked style source)"
         )
-    for name in export_files(root):
+    exports = export_files(root)
+    if exports is None:
+        return 1
+    for name in exports:
         violations.append(f"committed export {name} (no export may exist pre-1.6)")
 
     if violations:

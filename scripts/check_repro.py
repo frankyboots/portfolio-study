@@ -16,6 +16,11 @@ Without a ``.git`` tree at the root the gate prints
 ``SKIP: no git tree`` and exits 0 -- this is also the inner staged
 run's behavior, closing the self-recursion.
 
+The gate certifies the COMMITTED state: the committed generator code and
+its regenerated artifacts must be committed together (a one-sided commit
+reads as drift), and an artifact path absent from HEAD reports as byte
+drift -- it regenerates on disk but has no HEAD bytes to compare against.
+
 Mirrors ``scripts/check_import_walls.py``: ``main(argv)``, zero args ->
 repo root, OK/FAIL one-liners naming offenders, exit 0 pass / 1
 violation / 2 usage error.

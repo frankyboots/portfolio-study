@@ -152,6 +152,29 @@ def test_manifest_pin_mismatch_refuses(tmp_path: Path) -> None:
         m.build_manifest(staged, PASS_RESULTS)
 
 
+def test_manifest_duplicate_registry_name_refuses(tmp_path: Path) -> None:
+    m = load_manifest_module()
+    staged = stage_root(tmp_path)
+    # Overwrite the monthly sidecar with the annual one: two sidecars now
+    # claim the registry name canonical_60_40_annual_v1.
+    src = staged / "artifacts" / "series" / "canonical_60_40_annual_v1.meta.json"
+    dst = staged / "artifacts" / "series" / "canonical_60_40_monthly_v1.meta.json"
+    shutil.copyfile(src, dst)
+    with pytest.raises(SystemExit, match="duplicate registry name"):
+        m.build_manifest(staged, PASS_RESULTS)
+
+
+def test_manifest_missing_ad9_key_refuses(tmp_path: Path) -> None:
+    m = load_manifest_module()
+    staged = stage_root(tmp_path)
+    meta = staged / "artifacts" / "series" / "canonical_60_40_monthly_v1.meta.json"
+    doc = json.loads(meta.read_text("utf-8"))
+    del doc["owner"]
+    meta.write_text(json.dumps(doc, indent=2, sort_keys=True) + "\n", "utf-8")
+    with pytest.raises(SystemExit, match=r"lacks AD-9 field\(s\): owner"):
+        m.build_manifest(staged, PASS_RESULTS)
+
+
 def test_manifest_head_stamp_is_git_head_when_checkout(tmp_path: Path) -> None:
     m = load_manifest_module()
     staged = stage_root(tmp_path)

@@ -51,8 +51,12 @@ K_PIN_RE = re.compile(r"K \(last CPI\) \*\*([0-9]+(?:\.[0-9]+)?)\*\*")
 LAST_ROW_PIN_RE = re.compile(r"last row \*\*(\d{4}\.\d{2})\*\*")
 
 
-def scan_files(root: Path) -> list[Path]:
-    """Committed (or, without .git, on-disk) markdown under the scan dirs."""
+def scan_files(root: Path) -> list[Path] | None:
+    """Committed (or, without .git, on-disk) markdown under the scan dirs.
+
+    Returns ``None`` when the committed set could not be listed (git failure);
+    the FAIL line naming the git error is printed here, and ``main`` exits 1.
+    """
     if (root / ".git").exists():
         proc = subprocess.run(
             ["git", "-C", str(root), "ls-files", "--", *SCAN_DIRS],
@@ -61,7 +65,11 @@ def scan_files(root: Path) -> list[Path]:
             check=False,
         )
         if proc.returncode != 0:
-            return []
+            print(
+                f"FAIL: cross-doc consistency: cannot list committed markdown: {proc.stderr.strip()}",
+                file=sys.stderr,
+            )
+            return None
         names = [line for line in proc.stdout.splitlines() if line]
     else:
         names = [
@@ -84,11 +92,14 @@ def parse_pin(root: Path) -> tuple[str, float, str]:
     if not data_md.is_file():
         raise ValueError(f"missing {data_md.as_posix()} -- nothing to compare against")
     text = data_md.read_text(encoding="utf-8")
-    start = text.find("## 1.1")
-    if start < 0:
-        raise ValueError("data/DATA.md has no '## 1.1' section")
-    end = text.find("\n## ", start + 1)
-    section = text[start : end if end >= 0 else None]
+    # The 1.1 section header at any level 2-3 (today: '### 1.1 ...'), ending
+    # at the next level 2-3 header -- never bleeding into a sibling section.
+    start_match = re.search(r"(?m)^#{2,3} 1\.1\b", text)
+    if not start_match:
+        raise ValueError("data/DATA.md has no level 2-3 '1.1' section header")
+    next_header = re.search(r"(?m)^#{2,3} ", text[start_match.end() :])
+    end = start_match.end() + next_header.start() if next_header else len(text)
+    section = text[start_match.start() : end]
     pin = PIN_RE.search(section)
     k = K_PIN_RE.search(section)
     last_row = LAST_ROW_PIN_RE.search(section)
@@ -121,6 +132,8 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     files = scan_files(root)
+    if files is None:
+        return 1
     if not files:
         print(
             "OK: cross-doc consistency: no committed markdown under docs/, web/, manual/ "

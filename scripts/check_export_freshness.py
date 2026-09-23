@@ -31,8 +31,12 @@ SCAN_DIRS = ("artifacts", "web", "manual")
 EXPORT_SUFFIXES = (".png", ".svg")
 
 
-def export_files(root: Path) -> list[str]:
-    """Committed (or, without .git, on-disk) PNG/SVG exports under the scan dirs."""
+def export_files(root: Path) -> list[str] | None:
+    """Committed (or, without .git, on-disk) PNG/SVG exports under the scan dirs.
+
+    Returns ``None`` when the committed set could not be listed (git failure);
+    the FAIL line naming the git error is printed here, and ``main`` exits 1.
+    """
     names: list[str]
     if (root / ".git").exists():
         proc = subprocess.run(
@@ -41,6 +45,12 @@ def export_files(root: Path) -> list[str]:
             text=True,
             check=False,
         )
+        if proc.returncode != 0:
+            print(
+                f"FAIL: export freshness: cannot list committed exports: {proc.stderr.strip()}",
+                file=sys.stderr,
+            )
+            return None
         names = [line for line in proc.stdout.splitlines() if line]
     else:
         names = []
@@ -68,6 +78,8 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     exports = export_files(root)
+    if exports is None:
+        return 1
     if exports:
         for name in exports:
             print(

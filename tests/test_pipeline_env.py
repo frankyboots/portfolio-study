@@ -165,3 +165,72 @@ def test_failing_stage_returns_code_and_names_stage() -> None:
         pipeline.STAGES[:] = saved
     assert rc == 3
     assert "FAILED: stage 'broken-test-stage'" in err.getvalue()
+
+
+def _stage_git_tree(tmp_path: Path) -> Path:
+    """A minimal staged root that is a real git repo with one seed commit."""
+    staged = tmp_path / "repo"
+    (staged / "analysis" / "series").mkdir(parents=True)
+    (staged / "analysis" / "series" / "note.py").write_text("X = 1\n", encoding="utf-8")
+    (staged / "artifacts" / "series").mkdir(parents=True)
+    (staged / "artifacts" / "series" / "thing_v1.csv").write_text(
+        "1.0\n", encoding="utf-8"
+    )
+    (staged / "data").mkdir()
+    (staged / "data" / "RUNLOG.md").write_text("seed entry\n", encoding="utf-8")
+    for args in (
+        ["init", "-q"],
+        ["config", "user.email", "t@example.com"],
+        ["config", "user.name", "t"],
+        ["add", "-A"],
+        ["commit", "-q", "-m", "seed"],
+    ):
+        subprocess.run(
+            ["git", "-C", str(staged), *args], check=True, capture_output=True
+        )
+    return staged
+
+
+def test_tree_check_flags_dirty_path_outside_allowlist(tmp_path: Path) -> None:
+    import contextlib
+    import io
+
+    pipeline = load_pipeline()
+    staged = _stage_git_tree(tmp_path)
+    (staged / "analysis" / "series" / "note.py").write_text("X = 2\n", encoding="utf-8")
+    saved_root = pipeline.REPO_ROOT
+    try:
+        pipeline.REPO_ROOT = staged  # the stage judges the module-level root
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            rc = pipeline.run_tree_check_stage()
+    finally:
+        pipeline.REPO_ROOT = saved_root
+    assert rc == 1
+    assert "analysis/series/note.py" in err.getvalue()
+    assert "outside the allowlist" in err.getvalue()
+
+
+def test_tree_check_allows_manifest_artifacts_and_runlog(tmp_path: Path) -> None:
+    import contextlib
+    import io
+
+    pipeline = load_pipeline()
+    staged = _stage_git_tree(tmp_path)
+    staged.joinpath("manifest.json").write_text("{}\n", encoding="utf-8")  # untracked
+    (staged / "artifacts" / "series" / "thing_v1.csv").write_text(
+        "1.0\n2.0\n", encoding="utf-8"
+    )  # modified
+    (staged / "data" / "RUNLOG.md").write_text(
+        "seed entry\nmore\n", encoding="utf-8"
+    )  # modified
+    saved_root = pipeline.REPO_ROOT
+    try:
+        pipeline.REPO_ROOT = staged
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            rc = pipeline.run_tree_check_stage()
+    finally:
+        pipeline.REPO_ROOT = saved_root
+    assert rc == 0, out.getvalue()
+    assert "publish commit is a human step" in out.getvalue()
