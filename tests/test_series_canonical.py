@@ -151,7 +151,7 @@ def test_mid_series_none_fails_naming_month_and_column() -> None:
     # strictly mid-series, not the trailing tail) -> build must fail.
     n = 12
     dates = tuple((1871, m) for m in range(1, n + 1))
-    d = [1.0] * n
+    d: list[float | None] = [1.0] * n
     d[5] = None
     v = shiller_io.Vintage(
         sha256=shiller_io.VINTAGE_SHA256,
@@ -173,7 +173,7 @@ def test_mid_series_none_fails_naming_month_and_column() -> None:
 def test_mid_series_none_in_bm_shift_fails_naming_month_and_column() -> None:
     n = 12
     dates = tuple((1871, m) for m in range(1, n + 1))
-    bm = [1.0] * n
+    bm: list[float | None] = [1.0] * n
     bm[4] = None  # month 1871.06's nominal bond factor = BM[i-1] = BM[4]
     v = shiller_io.Vintage(
         sha256=shiller_io.VINTAGE_SHA256,

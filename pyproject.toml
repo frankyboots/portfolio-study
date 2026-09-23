@@ -47,10 +47,12 @@ mypy_path = "."
 explicit_package_bases = true
 files = ["analysis", "scripts"]
 # Legacy, self-disciplined: the archived probes (documented bugs) and the
-# standalone validated suite are never edited by build tooling.
+# standalone validated suite are never edited by build tooling. The
+# import-wall fixtures are deliberate violations the checker owns.
 exclude = [
     "^analysis/_archive/",
     "^analysis/validate_data_md[.]py$",
+    "^tests/fixtures/",
 ]
 ignore_missing_imports = true
 

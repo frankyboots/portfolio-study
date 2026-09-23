@@ -1,0 +1,67 @@
+name: Edition gates
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Lock the environment
+        run: uv sync --locked
+      - name: ruff lint
+        run: uv run ruff check .
+      - name: ruff format
+        run: uv run ruff format --check .
+      - name: mypy (zero errors; zero is the baseline)
+        run: uv run mypy analysis scripts tests
+      - name: pytest (a quality gate, deliberately not one of the eight)
+        run: uv run pytest
+
+  gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Lock the environment
+        run: uv sync --locked
+      - name: Obtain data/ie_data.xls (data/RUNLOG.md step 1)
+        run: |
+          set -euo pipefail
+          url="$(curl -fsSL https://shillerdata.com/ | grep -oE 'https?://[^"<> ]*ie_data\.xls\?ver=[^"<> ]*' | head -n 1)"
+          if [ -z "$url" ]; then
+            echo "no ie_data.xls ?ver= CDN blob href found on shillerdata.com" >&2
+            exit 1
+          fi
+          curl -fsSL "$url" -o data/ie_data.xls
+      - name: Byte-verify against the DATA.md section 1.1 pin
+        run: |
+          set -euo pipefail
+          expected="$(grep -oE 'sha256: [0-9a-f]{64}' data/DATA.md | head -n 1 | cut -d' ' -f2)"
+          actual="$(sha256sum data/ie_data.xls | cut -d' ' -f1)"
+          if [ "$expected" != "$actual" ]; then
+            echo "vintage pin mismatch: expected $expected, got $actual" >&2
+            exit 1
+          fi
+          echo "vintage pin verified: $actual"
+      - name: gate 1 -- vintage integrity
+        run: uv run python scripts/check_vintage_integrity.py
+      - name: gate 2 -- validation suite
+        run: uv run python analysis/validate_data_md.py
+      - name: gate 3 -- repro
+        run: uv run python scripts/check_repro.py
+      - name: gate 4 -- accessibility floor
+        run: uv run python scripts/check_accessibility_floor.py
+      - name: gate 5 -- render order
+        run: uv run python scripts/check_render_order.py
+      - name: gate 6 -- cross-doc consistency
+        run: uv run python scripts/check_crossdoc_consistency.py
+      - name: gate 7 -- export freshness
+        run: uv run python scripts/check_export_freshness.py
+      - name: gate 8 -- import wall
+        run: uv run python scripts/check_import_walls.py

@@ -12,8 +12,13 @@ runtime envelope itself -- ``OPENBLAS_NUM_THREADS=1``, ``TZ=UTC``,
 pipeline stages, printing per-stage status. Any stage failure exits
 non-zero, naming the failed stage.
 
-Later stories register their stages in ``STAGES`` below; the stage list
-is the single ordered flow (no parallel layer builds within one run).
+Stage order (AD-10): build artifacts -> run gates -> stamp HEAD ->
+verify tree -> (human) commit. The ``manifest`` stage is the runner's
+single write of the root ``manifest.json`` (via ``scripts/manifest.py``)
+and runs only after all eight Edition gates returned 0; no manifest is
+written or updated when any gate failed. The runner never commits: the
+final ``tree-check`` stage verifies the dirty set against the allowlist
+and hands the publish commit to the human (repo commit conventions).
 """
 
 from __future__ import annotations
@@ -67,9 +72,24 @@ def set_envelope() -> None:
 
 
 def run_import_wall_check() -> int:
-    """Stage: import-wall check. Fails the build on any violation."""
+    """Stage: import-wall check (Edition gate 8). Fails the build on any violation."""
     result = subprocess.run(
         [sys.executable, str(SCRIPTS_DIR / "check_import_walls.py"), str(REPO_ROOT)],
+        capture_output=True,
+        text=True,
+        check=False,  # intentional: the stage's exit code IS the signal
+    )
+    if result.stdout.strip():
+        print(result.stdout.strip())
+    if result.stderr.strip():
+        print(result.stderr.strip(), file=sys.stderr)
+    return result.returncode
+
+
+def _run_gate(script_name: str) -> int:
+    """Run one Edition-gate CLI as a subprocess against the repo root."""
+    result = subprocess.run(
+        [sys.executable, str(SCRIPTS_DIR / script_name), str(REPO_ROOT)],
         capture_output=True,
         text=True,
         check=False,  # intentional: the stage's exit code IS the signal
@@ -137,12 +157,177 @@ def run_vintage_integrity_stage() -> int:
     return 0 if ok else 1
 
 
+def run_suite_stage() -> int:
+    """Stage: validation suite, Edition gate 2.
+
+    Subprocesses ``analysis/validate_data_md.py`` with the invoking
+    process's ``sys.executable`` (the same pinned environment),
+    mirroring the import-wall stage pattern.
+    """
+    result = subprocess.run(
+        [sys.executable, str(REPO_ROOT / "analysis" / "validate_data_md.py")],
+        capture_output=True,
+        text=True,
+        check=False,  # intentional: the stage's exit code IS the signal
+    )
+    if result.stdout.strip():
+        print(result.stdout.strip())
+    if result.stderr.strip():
+        print(result.stderr.strip(), file=sys.stderr)
+    return result.returncode
+
+
+def run_repro_stage() -> int:
+    """Stage: repro, Edition gate 3 (byte-compare from clean checkout)."""
+    return _run_gate("check_repro.py")
+
+
+def run_accessibility_stage() -> int:
+    """Stage: accessibility floor, Edition gate 4 (structural seed, pre-1.6)."""
+    return _run_gate("check_accessibility_floor.py")
+
+
+def run_render_order_stage() -> int:
+    """Stage: render order, Edition gate 5 (structural seed; 1.7's contract)."""
+    return _run_gate("check_render_order.py")
+
+
+def run_crossdoc_stage() -> int:
+    """Stage: cross-doc consistency, Edition gate 6 (structural seed)."""
+    return _run_gate("check_crossdoc_consistency.py")
+
+
+def run_export_freshness_stage() -> int:
+    """Stage: export freshness, Edition gate 7 (structural seed, pre-1.6)."""
+    return _run_gate("check_export_freshness.py")
+
+
+def run_manifest_stage() -> int:
+    """Stage: write the root ``manifest.json`` (the runner's single write).
+
+    Runs only after all eight gates returned 0 (AD-10); the writer
+    refuses out-of-order/broken states on its own, so a failed gate
+    never leaves a manifest written or updated. The stamp is the
+    build-input HEAD; a non-git root stamps ``null``.
+    """
+    for base in (REPO_ROOT, SCRIPTS_DIR):
+        base_str = str(base)
+        if base_str not in sys.path:
+            sys.path.insert(0, base_str)
+    import json
+
+    import manifest as manifest_writer
+
+    try:
+        path = manifest_writer.write_manifest(REPO_ROOT, gate_results)
+    except (
+        SystemExit
+    ) as exc:  # writer refusal (zero sidecars, mixed stamps, pin drift, ...)
+        message = exc.code if isinstance(exc.code, str) else str(exc)
+        print(f"manifest: {message}", file=sys.stderr)
+        return 1
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    head = doc["build"]["head"]
+    print(
+        f"manifest: wrote {path.name} (registry {len(doc['artifacts'])} artifact(s), "
+        f"8/8 gates pass, build-input HEAD {head if head is not None else 'null'})"
+    )
+    return 0
+
+
+def run_tree_check_stage() -> int:
+    """Stage: verify the tree (last stage; the pipeline never commits).
+
+    Without ``.git`` prints a note and exits 0 (staged tmp roots).
+    With git, fails (exit 1) if ``git status --porcelain`` shows any
+    dirty path outside ``{manifest.json, artifacts/**, data/RUNLOG.md}``,
+    naming every offending path; otherwise prints the publish-commit
+    instruction (the human commits, per repo commit conventions §5).
+    """
+    if not (REPO_ROOT / ".git").exists():
+        print(
+            "tree-check: no .git at root -- tree verification skipped (staged tmp root)"
+        )
+        return 0
+    proc = subprocess.run(
+        ["git", "-C", str(REPO_ROOT), "status", "--porcelain"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if proc.returncode != 0:
+        print(f"tree-check: git status failed: {proc.stderr.strip()}", file=sys.stderr)
+        return 1
+    allowed: list[str] = []
+    offending: list[str] = []
+    for line in proc.stdout.splitlines():
+        if not line.strip():
+            continue
+        target = line[3:]
+        if " -> " in target:  # rename: judge the destination
+            target = target.rsplit(" -> ", 1)[1]
+        if (
+            target == "manifest.json"
+            or target.startswith("artifacts/")
+            or target == "data/RUNLOG.md"
+        ):
+            allowed.append(target)
+        else:
+            offending.append(target)
+    if offending:
+        for path in sorted(set(offending)):
+            print(
+                f"tree-check: dirty path outside the allowlist: {path}", file=sys.stderr
+            )
+        print(
+            "FAIL: tree-check: commit or revert the paths above before publishing "
+            "(allowlist: manifest.json, artifacts/**, data/RUNLOG.md)",
+            file=sys.stderr,
+        )
+        return 1
+    print(
+        "tree-check: tree clean apart from the allowlist "
+        f"({', '.join(sorted(set(allowed))) if allowed else 'nothing dirty'})"
+    )
+    print(
+        "tree-check: the publish commit is a human step -- commit the runner's output "
+        "per the repo commit conventions §5; the pipeline never commits."
+    )
+    return 0
+
+
+#: Pipeline stage -> AD-8 gate number (the manifest records the eight
+#: gates in AD-8 numbering, not pipeline order).
+STAGE_TO_GATE: dict[str, int] = {
+    "vintage-integrity": 1,
+    "suite": 2,
+    "repro": 3,
+    "accessibility": 4,
+    "render-order": 5,
+    "cross-doc": 6,
+    "export-freshness": 7,
+    "import-wall": 8,
+}
+
+#: Gate results accumulated during a run (AD-8 number -> result);
+#: the manifest stage stamps only when all eight are "pass".
+gate_results: dict[int, str] = {}
+
+
 #: Ordered pipeline stages; later stories append here.
 STAGES: list[tuple[str, Callable[[], int]]] = [
     ("import-wall", run_import_wall_check),
     ("series", run_series_stage),
     ("comparator", run_comparator_stage),
     ("vintage-integrity", run_vintage_integrity_stage),
+    ("suite", run_suite_stage),
+    ("repro", run_repro_stage),
+    ("accessibility", run_accessibility_stage),
+    ("render-order", run_render_order_stage),
+    ("cross-doc", run_crossdoc_stage),
+    ("export-freshness", run_export_freshness_stage),
+    ("manifest", run_manifest_stage),
+    ("tree-check", run_tree_check_stage),
 ]
 
 
@@ -159,6 +344,7 @@ def main() -> int:
         f"  svg.hashsalt={SVG_HASHSALT} (rcParam in-process; pinned in config/matplotlibrc)"
     )
 
+    gate_results.clear()
     for name, stage in STAGES:
         try:
             rc = stage()
@@ -171,6 +357,9 @@ def main() -> int:
         if rc != 0:
             print(f"FAILED: stage '{name}' exited {rc}", file=sys.stderr)
             return rc
+        gate_number = STAGE_TO_GATE.get(name)
+        if gate_number is not None:
+            gate_results[gate_number] = "pass"
         print(f"stage '{name}': OK")
     print("pipeline: all stages OK")
     return 0
