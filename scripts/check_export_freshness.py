@@ -76,33 +76,38 @@ def _stage_tree(root: Path) -> Path:
     on failure.
     """
     staged = Path(tempfile.mkdtemp(prefix="freshness-gate7-"))
-    if (root / ".git").exists():
-        tar_path = staged / "tree.tar"
-        archive = subprocess.run(
-            ["git", "-C", str(root), "archive", "--output", str(tar_path), "HEAD"],
-            capture_output=True,
-            text=True,
-            check=False,  # intentional: the return code is the signal
-        )
-        if archive.returncode != 0:
-            raise ValueError(f"git archive failed: {archive.stderr.strip()}")
-        unpack = subprocess.run(
-            ["tar", "-xf", str(tar_path), "-C", str(staged)],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if unpack.returncode != 0:
-            raise ValueError(f"tar unpack failed: {unpack.stderr.strip()}")
-        tar_path.unlink(missing_ok=True)
-    else:
-        shutil.copytree(
-            root,
-            staged,
-            ignore=shutil.ignore_patterns(".git", "__pycache__", "_bmad-output"),
-            dirs_exist_ok=True,
-        )
-    return staged
+    try:
+        if (root / ".git").exists():
+            tar_path = staged / "tree.tar"
+            archive = subprocess.run(
+                ["git", "-C", str(root), "archive", "--output", str(tar_path), "HEAD"],
+                capture_output=True,
+                text=True,
+                check=False,  # intentional: the return code is the signal
+            )
+            if archive.returncode != 0:
+                raise ValueError(f"git archive failed: {archive.stderr.strip()}")
+            unpack = subprocess.run(
+                ["tar", "-xf", str(tar_path), "-C", str(staged)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if unpack.returncode != 0:
+                raise ValueError(f"tar unpack failed: {unpack.stderr.strip()}")
+            tar_path.unlink(missing_ok=True)
+        else:
+            shutil.copytree(
+                root,
+                staged,
+                ignore=shutil.ignore_patterns(".git", "__pycache__", "_bmad-output"),
+                dirs_exist_ok=True,
+            )
+        return staged
+    except Exception:
+        # A half-staged tree is useless; never leave it in /tmp.
+        shutil.rmtree(staged, ignore_errors=True)
+        raise
 
 
 def _stamp_format_violation(record: dict) -> str | None:
@@ -179,63 +184,67 @@ def main(argv: list[str] | None = None) -> int:
         print(f"FAIL: export freshness: cannot stage tree: {exc}", file=sys.stderr)
         return 1
 
-    if not (staged / "analysis" / "figures" / "registry.py").is_file():
-        print(
-            "OK: export freshness: committed tree has no analysis/figures "
-            "(no registered figures to check)"
-        )
-        return 0
-
+    # Every path below (structural pass, import failure, driver failure,
+    # diff loop, success) exits through the one finally that removes the
+    # staged root, so repeated failed builds never accumulate full tree
+    # copies in /tmp.
     try:
-        from analysis.figures import _diff, style
-    except ModuleNotFoundError as exc:
-        print(
-            f"FAIL: export freshness: the staged tree registers figures but "
-            f"analysis.figures cannot be imported at {root}: {exc}",
-            file=sys.stderr,
-        )
-        return 1
+        if not (staged / "analysis" / "figures" / "registry.py").is_file():
+            print(
+                "OK: export freshness: committed tree has no analysis/figures "
+                "(no registered figures to check)"
+            )
+            return 0
 
-    # Drop the pre-copied exports: the driver's build must produce them,
-    # and an on-disk record that survives staging without a build is a
-    # retired leftover (checked below against the on-disk tree).
-    shutil.rmtree(staged / "artifacts" / "figures", ignore_errors=True)
+        try:
+            from analysis.figures import _diff, style
+        except ModuleNotFoundError as exc:
+            print(
+                f"FAIL: export freshness: the staged tree registers figures but "
+                f"analysis.figures cannot be imported at {root}: {exc}",
+                file=sys.stderr,
+            )
+            return 1
 
-    driver = staged / "_gate7_driver.py"
-    try:
-        driver.write_text(_DRIVER_SOURCE, encoding="utf-8")
-        # The deterministic runtime envelope (scripts/pipeline.py's
-        # ENVELOPE, mirrored here): the driver must see the same locale,
-        # backend, thread and matplotlib-config environment the
-        # pipeline pins, whatever the ambient shell carries.
-        env = {
-            **os.environ,
-            "OPENBLAS_NUM_THREADS": "1",
-            "TZ": "UTC",
-            "LC_ALL": "C",
-            "MPLBACKEND": "Agg",
-            "MPLCONFIGDIR": str(staged / "config"),
-        }
-        proc = subprocess.run(
-            [sys.executable, str(driver)],
-            cwd=str(staged),
-            capture_output=True,
-            text=True,
-            env=env,
-            check=False,  # intentional: the exit code is the signal
-        )
-    finally:
-        driver.unlink(missing_ok=True)
-    if proc.returncode != 0:
-        tail = "\n".join((proc.stdout + proc.stderr).splitlines()[-15:])
-        print(tail, file=sys.stderr)
-        print(
-            f"FAIL: export freshness: staged figure build exited {proc.returncode}",
-            file=sys.stderr,
-        )
-        return 1
+        # Drop the pre-copied exports: the driver's build must produce them,
+        # and an on-disk record that survives staging without a build is a
+        # retired leftover (checked below against the on-disk tree).
+        shutil.rmtree(staged / "artifacts" / "figures", ignore_errors=True)
 
-    try:
+        driver = staged / "_gate7_driver.py"
+        try:
+            driver.write_text(_DRIVER_SOURCE, encoding="utf-8")
+            # The deterministic runtime envelope (scripts/pipeline.py's
+            # ENVELOPE, mirrored here): the driver must see the same locale,
+            # backend, thread and matplotlib-config environment the
+            # pipeline pins, whatever the ambient shell carries.
+            env = {
+                **os.environ,
+                "OPENBLAS_NUM_THREADS": "1",
+                "TZ": "UTC",
+                "LC_ALL": "C",
+                "MPLBACKEND": "Agg",
+                "MPLCONFIGDIR": str(staged / "config"),
+            }
+            proc = subprocess.run(
+                [sys.executable, str(driver)],
+                cwd=str(staged),
+                capture_output=True,
+                text=True,
+                env=env,
+                check=False,  # intentional: the exit code is the signal
+            )
+        finally:
+            driver.unlink(missing_ok=True)
+        if proc.returncode != 0:
+            tail = "\n".join((proc.stdout + proc.stderr).splitlines()[-15:])
+            print(tail, file=sys.stderr)
+            print(
+                f"FAIL: export freshness: staged figure build exited {proc.returncode}",
+                file=sys.stderr,
+            )
+            return 1
+
         problems: list[str] = []
         staged_figdir = staged / "artifacts" / "figures"
         disk_figdir = root / "artifacts" / "figures"
