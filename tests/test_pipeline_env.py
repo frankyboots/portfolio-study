@@ -194,6 +194,116 @@ def _stage_git_tree(tmp_path: Path) -> Path:
     return staged
 
 
+def _stage_figures_root(tmp_path: Path) -> Path:
+    """A .git-less, manifest-less root with the figure inputs but no exports."""
+    staged = tmp_path / "repo"
+    for name in ("analysis", "config", "scripts"):
+        shutil.copytree(
+            REPO_ROOT / name,
+            staged / name,
+            ignore=shutil.ignore_patterns("__pycache__"),
+        )
+    shutil.copytree(REPO_ROOT / "artifacts" / "series", staged / "artifacts" / "series")
+    return staged
+
+
+#: The driver executed inside the staged root (gate 7's driver pattern);
+#: its sys.path[0] is the staged root, so ``analysis.*`` resolves to the
+#: staged code. Runs exactly the pipeline figures stage against it.
+_FIGURES_STAGE_DRIVER = """\
+import importlib.util
+import sys
+from pathlib import Path
+
+root = Path(__file__).resolve().parent
+spec = importlib.util.spec_from_file_location(
+    "pipeline_under_test", root / "scripts" / "pipeline.py"
+)
+pipeline = importlib.util.module_from_spec(spec)
+assert spec.loader is not None
+spec.loader.exec_module(pipeline)
+pipeline.REPO_ROOT = root
+sys.exit(pipeline.run_figures_stage())
+"""
+
+
+def _run_figures_stage(staged: Path) -> tuple[int, str]:
+    """One figures-stage run in a fresh subprocess; (exit code, combined output).
+
+    Subprocess isolation is intentional: driving the stage in-process would
+    build a matplotlib figure in this pytest process, and a figure build
+    after the envelope tests pinned ``LC_ALL=C`` into ``os.environ``
+    re-resolves the C-locale category inside the C extensions and leaves
+    the process decoding subprocess output as ASCII thereafter.
+    """
+    driver = staged / "_figures_stage_driver.py"
+    driver.write_text(_FIGURES_STAGE_DRIVER, encoding="utf-8")
+    try:
+        proc = subprocess.run(
+            [sys.executable, str(driver)],
+            capture_output=True,
+            text=True,
+            check=False,  # intentional: the return code is the signal
+        )
+    finally:
+        driver.unlink(missing_ok=True)
+    return proc.returncode, proc.stdout + proc.stderr
+
+
+def test_figures_stage_stamp_churn_suppresses_head_only_diff(tmp_path: Path) -> None:
+    """Stamp-churn property: the second run leaves the tree byte-identical.
+
+    Drives the pipeline figures stage three times on one .git-less root.
+    The first render resolves BUILD-HEAD as ``nogit``; after a
+    manifest.json with a 40-hex ``build.head`` is written, the second
+    render's stamp differs in the BUILD-HEAD leg only. The stage must
+    exit 0 and the pre-render bytes must be restored for all three
+    artifacts. The sanity inverse: a genuine input change is NOT
+    suppressed.
+    """
+    import json
+
+    staged = _stage_figures_root(tmp_path)
+    figs = staged / "artifacts" / "figures"
+    figure = "rebalance_growth_v1"
+    suffixes = (".png", ".svg", ".figure.json")
+
+    rc, out1 = _run_figures_stage(staged)
+    assert rc == 0, out1
+    assert "first render" in out1
+    record1 = json.loads((figs / f"{figure}.figure.json").read_text(encoding="utf-8"))
+    assert "BUILD-HEAD nogit" in record1["stamp"]
+    pre = {suffix: (figs / f"{figure}{suffix}").read_bytes() for suffix in suffixes}
+
+    # Second render: the manifest now carries a 40-hex build.head, so the
+    # BUILD-HEAD leg of the stamp is the only difference between renders.
+    head = "ab" * 20
+    (staged / "manifest.json").write_text(
+        json.dumps({"build": {"head": head}}, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    rc, out2 = _run_figures_stage(staged)
+    assert rc == 0, out2
+    assert "churn suppressed" in out2
+    for suffix in suffixes:
+        assert (figs / f"{figure}{suffix}").read_bytes() == pre[suffix], (
+            f"{suffix} was rewritten on a BUILD-HEAD-only difference"
+        )
+
+    # Sanity inverse: a real input change must NOT be suppressed.
+    monthly = staged / "artifacts" / "series" / "canonical_60_40_monthly_v1.csv"
+    lines = monthly.read_text(encoding="utf-8").splitlines()
+    date_part, real_part, nominal_part = lines[-1].split(",")
+    lines[-1] = f"{date_part},{float(real_part) * 2.0:.2f},{nominal_part}"
+    monthly.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    rc, out3 = _run_figures_stage(staged)
+    assert rc == 0, out3
+    assert "re-rendered" in out3
+    record3 = json.loads((figs / f"{figure}.figure.json").read_text(encoding="utf-8"))
+    assert record3["alt_text"] != record1["alt_text"]
+    assert (figs / f"{figure}.figure.json").read_bytes() != pre[".figure.json"]
+
+
 def test_tree_check_flags_dirty_path_outside_allowlist(tmp_path: Path) -> None:
     import contextlib
     import io

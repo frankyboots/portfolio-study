@@ -89,8 +89,8 @@ def test_record_top_level_schema(built_root: Path) -> None:
     assert rec["builder"] == rebalance_growth.SCRIPT_REL
     assert rec["canvas_px"] == {"width": 1200, "height": 800}
     assert rec["source_artifacts"] == [
-        "canonical_60_40_annual_v1",
         "canonical_60_40_monthly_v1",
+        "canonical_60_40_annual_v1",
     ]
     for series in rec["series"]:
         assert set(series) == {
@@ -107,6 +107,16 @@ def test_record_top_level_schema(built_root: Path) -> None:
         for field in ("id", "display_name", "units"):
             assert isinstance(series[field], str) and series[field]
     assert {s["dash"] for s in rec["series"]} == {"solid", "dashed"}
+    # The frozen decision: monthly is the primary (solid, data-good),
+    # annual the baseline (dashed, data-neutral); primary declared first.
+    assert rec["series"][0]["role"] == "primary"
+    by_id = {s["id"]: s for s in rec["series"]}
+    assert by_id["monthly_rebalanced_real"]["role"] == "primary"
+    assert by_id["monthly_rebalanced_real"]["dash"] == "solid"
+    assert by_id["monthly_rebalanced_real"]["fg"] == "data-good"
+    assert by_id["annual_rebalanced_real"]["role"] == "baseline"
+    assert by_id["annual_rebalanced_real"]["dash"] == "dashed"
+    assert by_id["annual_rebalanced_real"]["fg"] == "data-neutral"
     for decl in rec["style_declarations"]:
         assert set(decl) in (
             {"element", "fg", "on", "role"},
@@ -147,6 +157,9 @@ def test_alt_text_is_the_v1_key_set(built_root: Path) -> None:
         assert entry["role"] in SERIES_ROLES
     ids = {entry["id"] for entry in alt["series"]}
     assert ids == {s["id"] for s in _record(built_root)["series"]}
+    # The alt-text series sentence names the roles per the frozen decision.
+    assert "monthly-rebalanced (primary, solid)" in alt["alt_text"]
+    assert "annual-rebalanced (baseline, dashed)" in alt["alt_text"]
 
 
 def test_stamp_is_the_ad6_schema(built_root: Path) -> None:

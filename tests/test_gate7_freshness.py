@@ -154,6 +154,22 @@ def test_vintage_mismatch_fails(case_root: Path) -> None:
     assert "VINTAGE" in out and "2025-12" in out
 
 
+def test_stamp_format_violation_fails(case_root: Path) -> None:
+    """A record stamp carrying the right VINTAGE but a malformed
+    BUILD-HEAD leg must fail the full format regex (spec negative
+    class 'stamp-format violation'), exit 1 naming the figure."""
+
+    def mutate(doc):
+        doc["stamp"] = doc["stamp"].replace("BUILD-HEAD", "GARBAGE-HEAD")
+
+    _rewrite_record(case_root, mutate)
+    rc, out = run_gate(case_root)
+    assert rc == 1, out
+    assert NAME in out
+    assert "on-disk record" in out
+    assert "stamp" in out and "format" in out
+
+
 def test_missing_on_disk_export_fails(case_root: Path) -> None:
     (case_root / FIGS_REL / f"{NAME}.png").unlink()
     rc, out = run_gate(case_root)

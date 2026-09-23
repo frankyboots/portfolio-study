@@ -9,10 +9,13 @@ diffs the result against the on-disk exports:
 - the SVG diff strips the ``<g id="release-stamp">`` group on both sides
   (the build-only churn stamp); any other byte difference fails,
 - the PNG must be pixel-identical outside ``STAMP_RECT_PX``,
-- the record is compared with the ``stamp`` field excluded, and the
-  ``VINTAGE`` token in each record's stamp must equal that side's
-  data-side sidecar ``vintage.last_row`` (the ``BUILD-HEAD`` token may
-  differ -- build-only churn, never a failure).
+- the record is compared with the ``stamp`` field excluded, and each
+  record's stamp string must match the full release-stamp format regex
+  (checked on BOTH the staged and the on-disk record; a malformed
+  BUILD-HEAD or script leg fails even when the VINTAGE token is
+  intact), with the record's VINTAGE equal to that side's data-side
+  sidecar ``vintage.last_row`` (the ``BUILD-HEAD`` leg may differ
+  between sides -- build-only churn, never a failure).
 
 The figure set is enumerated by the staged root's own
 ``analysis.figures.registry`` (the same single enumeration source the
@@ -99,6 +102,23 @@ def _stage_tree(root: Path) -> Path:
             dirs_exist_ok=True,
         )
     return staged
+
+
+def _stamp_format_violation(record: dict) -> str | None:
+    """Violation string, or None, when a record's stamp fails the full AD-6 format.
+
+    The whole stamp string must parse via ``_records.STAMP_RE`` -- not
+    just the VINTAGE token: a malformed BUILD-HEAD leg or script path
+    is a stamp-format violation even when the VINTAGE is intact.
+    """
+    from analysis.figures import _records
+
+    stamp = record.get("stamp")
+    if not isinstance(stamp, str):
+        return "record stamp is missing or not a string"
+    if _records.parse_stamp(stamp) is None:
+        return f"record stamp {stamp!r} fails the release-stamp format regex"
+    return None
 
 
 def _vintage_violation(record: dict, base: Path) -> str | None:
@@ -274,6 +294,9 @@ def main(argv: list[str] | None = None) -> int:
             ("staged", staged_record, staged),
             ("on-disk", disk_record, root),
         ):
+            format_violation = _stamp_format_violation(record)
+            if format_violation:
+                problems.append(f"{where}{label} record: {format_violation}")
             violation = _vintage_violation(record, base)
             if violation:
                 problems.append(f"{where}{label} record: {violation}")

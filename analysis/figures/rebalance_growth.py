@@ -1,8 +1,8 @@
 """Pilot figure: rebalance_growth_v1 — monthly vs annual rebalanced REAL 60/40.
 
 The story-1.6 end-to-end proof: one locked-style figure built from the
-two registered series artifacts (the annual-rebalanced comparator as
-the primary, the monthly-rebalanced canonical series as the baseline),
+two registered series artifacts (the monthly-rebalanced canonical series
+as the primary, the annual-rebalanced comparator as the baseline),
 exported to PNG + SVG with the baked release stamp and one
 deterministic ``*.figure.json`` record.
 
@@ -41,9 +41,10 @@ from analysis.figures import _records, style
 NAME = "rebalance_growth_v1"
 SCRIPT_REL = "analysis/figures/rebalance_growth.py"
 
+#: The two registered inputs, primary artifact first (mirrors SERIES).
 SOURCE_ARTIFACTS = (
-    "canonical_60_40_annual_v1",
     "canonical_60_40_monthly_v1",
+    "canonical_60_40_annual_v1",
 )
 
 UNITS = "growth index, decimal (base 1.0 at 1871.01)"
@@ -52,17 +53,17 @@ UNITS = "growth index, decimal (base 1.0 at 1871.01)"
 SERIES = (
     {
         "dash": "solid",
-        "display_name": "Annual-rebalanced 60/40, real",
+        "display_name": "Monthly-rebalanced 60/40, real",
         "fg": "data-good",
-        "id": "annual_rebalanced_real",
+        "id": "monthly_rebalanced_real",
         "on": "paper",
         "role": "primary",
     },
     {
         "dash": "dashed",
-        "display_name": "Monthly-rebalanced 60/40, real",
+        "display_name": "Annual-rebalanced 60/40, real",
         "fg": "data-neutral",
-        "id": "monthly_rebalanced_real",
+        "id": "annual_rebalanced_real",
         "on": "paper",
         "role": "baseline",
     },
@@ -129,6 +130,7 @@ def _fmt(value: float) -> str:
 
 
 def _load_series(root: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
+    frames: dict[str, pd.DataFrame] = {}
     for artifact in SOURCE_ARTIFACTS:
         path = root / "artifacts" / "series" / f"{artifact}.csv"
         if not path.is_file():
@@ -136,11 +138,12 @@ def _load_series(root: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
                 f"missing source artifact {path.relative_to(root)} "
                 "(run the series/comparator stages first)"
             )
-    annual = pd.read_csv(root / "artifacts" / "series" / f"{SOURCE_ARTIFACTS[0]}.csv")
-    monthly = pd.read_csv(root / "artifacts" / "series" / f"{SOURCE_ARTIFACTS[1]}.csv")
-    for frame in (annual, monthly):
+        frame = pd.read_csv(path)
         if list(frame.columns) != ["date", "real", "nominal"]:
             raise ValueError(f"unexpected series CSV columns: {list(frame.columns)}")
+        frames[artifact] = frame
+    annual = frames["canonical_60_40_annual_v1"]
+    monthly = frames["canonical_60_40_monthly_v1"]
     if not monthly["date"].equals(annual["date"]):
         raise ValueError("the two source artifacts do not share the same date index")
     return annual, monthly
@@ -179,8 +182,8 @@ def _alt_text(annual: pd.DataFrame, monthly: pd.DataFrame) -> dict:
         f"Line chart of 2 real 60/40 growth-index series "
         f"(annual- and monthly-rebalanced), {start} to {end}. "
         f"Axes: {X_LABEL}, {Y_LABEL} (log scale). {trend} {extremes} "
-        f"2 series: annual-rebalanced (primary, solid) and "
-        f"monthly-rebalanced (baseline, dashed)."
+        f"2 series: monthly-rebalanced (primary, solid) and "
+        f"annual-rebalanced (baseline, dashed)."
     )
     return {
         "alt_text": alt_text,
@@ -322,11 +325,16 @@ def build_figure(root: Path) -> int:
     ax.set_facecolor(style.token("paper"))
     ax.grid(axis="y", color=style.token("rule"), linewidth=0.5)
 
+    # The plotted data per series id (the role/dash/fg assignment comes
+    # from SERIES; the data binding stays explicit, not role-keyed).
+    data: dict[str, tuple[pd.Series, pd.Series]] = {
+        "annual_rebalanced_real": (x_a, v_a),
+        "monthly_rebalanced_real": (x_m, v_m),
+    }
     artists: dict[str, plt.Line2D] = {}
     for spec in SERIES:
         dash, lw_pt = style.dash_style(spec["dash"])
-        xs = x_a if spec["role"] == "primary" else x_m
-        vals = v_a if spec["role"] == "primary" else v_m
+        xs, vals = data[spec["id"]]
         artists[spec["id"]] = ax.plot(
             xs,
             vals,
@@ -386,8 +394,7 @@ def build_figure(root: Path) -> int:
     for spec in SERIES:
         leader_x_px = LEADER_X_PX[spec["id"]]
         data_x = px_to_data_x(leader_x_px)
-        xs = x_a if spec["role"] == "primary" else x_m
-        vals = v_a if spec["role"] == "primary" else v_m
+        xs, vals = data[spec["id"]]
         line_val = _value_at(xs, vals, data_x)
         label_center_px = LABEL_PX[spec["id"]][1]
         bottom_px = label_center_px + style.measure_text_px(labels[spec["id"]]) / 2.0

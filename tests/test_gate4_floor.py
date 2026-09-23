@@ -195,8 +195,8 @@ def test_grayscale_luminance_collision_fails(gate4_case: Path) -> None:
 
     def mutate(doc):
         for s in doc["series"]:
-            if s["id"] == "monthly_rebalanced_real":
-                s["dash"] = "solid"  # same dash as the annual series
+            if s["id"] == "annual_rebalanced_real":
+                s["dash"] = "solid"  # same dash as the monthly (primary) series
 
     _rewrite_record(gate4_case, mutate)
     rc, out = run_gate(gate4_case)
