@@ -44,7 +44,7 @@ from pathlib import Path
 
 from . import canonical_60_40, shiller_io
 from .canonical_60_40 import BuildError, SeriesResult, serialize_csv
-from .legs import LegSet, build_legs, label
+from .legs import DATA_QUALITY_NOTES, LegSet, build_legs, label
 from .shiller_io import Vintage
 
 ANNUAL_CSV_NAME = "canonical_60_40_annual_v1.csv"
@@ -55,15 +55,6 @@ ARTIFACT_DIR = ("artifacts", "series")
 
 _EQ_WEIGHT = 0.6
 _BOND_WEIGHT = 0.4
-
-#: The pinned data-quality note shared with the monthly sidecars.
-_DATA_QUALITY_NOTES = [
-    (
-        "DATA.md §7: the 2025.10 CPI value is Shiller's fill-in; BLS never "
-        "released October 2025 CPI (2025 lapse in appropriations). 2026.08 "
-        "and 2026.09 CPI values are Shiller estimates."
-    ),
-]
 
 
 def annual_from_legs(legs: LegSet) -> SeriesResult:
@@ -163,7 +154,7 @@ def serialize_annual_meta(v: Vintage, result: SeriesResult) -> bytes:
         "excluded_provisional": [
             {"month": month, "reason": reason} for month, reason in result.excluded
         ],
-        "data_quality_notes": list(_DATA_QUALITY_NOTES),
+        "data_quality_notes": list(DATA_QUALITY_NOTES),
         "row_count": len(result.labels),
     }
     return (json.dumps(meta, indent=2, sort_keys=True) + "\n").encode("utf-8")
@@ -226,9 +217,11 @@ def build_comparator(root: Path) -> int:
 
     Both conventions are constructed from the one pinned vintage in this
     process (one shared leg engine); the diff is in-memory, never read
-    from the committed monthly CSV. Returns 0 on success; prints the
-    named error to stderr and returns 1 on failure (missing file, sha
-    mismatch, mid-series gap, identity violation).
+    from the committed monthly CSV. Returns 0 on success; on any
+    :class:`shiller_io.VintageError` or :class:`BuildError` -- the
+    failure cases owned by the :mod:`.shiller_io` pin contract and
+    :func:`.legs.build_legs` -- prints the named error to stderr and
+    returns 1.
     """
     try:
         vintage = shiller_io.load_vintage(root)

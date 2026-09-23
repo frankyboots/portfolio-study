@@ -38,6 +38,17 @@ from .shiller_io import Vintage
 #: (the suite's BM-identity tolerance; DATA.md §8).
 BM_IDENTITY_REL_TOL = 1e-12
 
+#: The one pinned data-quality note (DATA.md §7) carried verbatim by
+#: every sidecar under artifacts/series/ -- shared by the monthly and
+#: the annual-rebalance comparator serializers so they cannot drift.
+DATA_QUALITY_NOTES: tuple[str, ...] = (
+    (
+        "DATA.md §7: the 2025.10 CPI value is Shiller's fill-in; BLS never "
+        "released October 2025 CPI (2025 lapse in appropriations). 2026.08 "
+        "and 2026.09 CPI values are Shiller estimates."
+    ),
+)
+
 
 class BuildError(Exception):
     """Raised on a construction-convention failure (gap, identity, tail)."""
@@ -64,11 +75,15 @@ class LegMonth:
 class LegSet:
     """The construction range of one Vintage, as shared leg factors.
 
-    ``months`` holds the factors for months ``1..end_index`` (the seed
-    month ``0`` carries no return factor); labels are not stored per
-    month index -- ``months[k - 1]`` is the return month after
-    ``months[k - 2]`` -- but each factor carries its own zero-padded
-    ``YYYY.MM`` label and calendar month.
+    ``end_index`` is the last used data-row index (the content-driven
+    endpoint); ``seed_label`` is the zero-padded YYYY.MM label of data
+    row 0 (the seed month, which carries no return factor); ``excluded``
+    records the trailing provisional months with reasons. ``months``
+    holds one :class:`LegMonth` per return month -- data rows
+    ``1..end_index``, in file order, so ``months[0]`` is the return
+    month immediately after the seed -- and every :class:`LegMonth`
+    carries its own zero-padded ``YYYY.MM`` label, calendar month
+    (1..12), and the four per-month leg factors.
     """
 
     end_index: int

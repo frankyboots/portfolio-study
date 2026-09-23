@@ -33,6 +33,7 @@ from pathlib import Path
 
 from . import shiller_io
 from .legs import (
+    DATA_QUALITY_NOTES,
     BuildError,  # re-exported for the pinned public surface
     LegSet,
     build_legs,
@@ -126,13 +127,7 @@ def serialize_meta(v: Vintage, result: SeriesResult) -> bytes:
         "excluded_provisional": [
             {"month": month, "reason": reason} for month, reason in result.excluded
         ],
-        "data_quality_notes": [
-            (
-                "DATA.md §7: the 2025.10 CPI value is Shiller's fill-in; BLS never "
-                "released October 2025 CPI (2025 lapse in appropriations). 2026.08 "
-                "and 2026.09 CPI values are Shiller estimates."
-            ),
-        ],
+        "data_quality_notes": list(DATA_QUALITY_NOTES),
         "row_count": len(result.labels),
     }
     return (json.dumps(meta, indent=2, sort_keys=True) + "\n").encode("utf-8")

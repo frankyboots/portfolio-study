@@ -6,6 +6,7 @@ sets the envelope and passes its import-wall stage.
 """
 
 import importlib.util
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -52,9 +53,25 @@ def test_set_envelope_pins_all_vars() -> None:
     assert matplotlib.rcParams["svg.hashsalt"] == pipeline.SVG_HASHSALT
 
 
-def test_pipeline_happy_path_exits_zero_with_envelope_and_stage() -> None:
+def test_pipeline_happy_path_exits_zero_with_envelope_and_stage(
+    tmp_path: Path,
+) -> None:
+    # Stage a repo-shaped root with the pipeline's inputs so the real
+    # run never writes into the repo's artifacts/ during the test: the
+    # series and comparator stages regenerate artifacts under the
+    # staged root instead of the checked-out repo.
+    staged = tmp_path / "repo"
+    for name in ("scripts", "analysis", "config"):
+        shutil.copytree(
+            REPO_ROOT / name,
+            staged / name,
+            ignore=shutil.ignore_patterns("__pycache__"),
+        )
+    (staged / "data").mkdir()
+    shutil.copy2(REPO_ROOT / "data" / "ie_data.xls", staged / "data" / "ie_data.xls")
+
     result = subprocess.run(
-        [sys.executable, str(PIPELINE)],
+        [sys.executable, str(staged / "scripts" / "pipeline.py")],
         capture_output=True,
         text=True,
         check=False,  # intentional: the exit code is asserted by this test

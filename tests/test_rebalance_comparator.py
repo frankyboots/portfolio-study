@@ -10,6 +10,7 @@ The repo's committed artifacts are never rewritten by the suite.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import shutil
 from pathlib import Path
@@ -271,7 +272,7 @@ def test_diff_values_equal_annual_minus_monthly_on_this_vintage(
         assert a_nom - m_nom == d_nom
 
 
-def test_sha_mismatch_fails_before_any_read(
+def test_sha_mismatch_fails_naming_expected_and_actual_without_writing_artifacts(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     _require_vintage()
@@ -280,8 +281,6 @@ def test_sha_mismatch_fails_before_any_read(
     blob = XLS.read_bytes()
     tampered = blob[:1000] + b"\x00" + blob[1001:]
     (root / "data" / "ie_data.xls").write_bytes(tampered)
-
-    import hashlib
 
     assert build_comparator(root) != 0
     captured = capsys.readouterr()
