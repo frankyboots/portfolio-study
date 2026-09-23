@@ -76,3 +76,12 @@ stamp — and the notes row is the verbatim sheet cell, segments joined with
 - notes row: `Sept price is Sept 1st close` / `Oct '25/Aug/Sept CPI estimated` / `Sept GS10 is Sept 1st value`
 - suite: 81/81 pass (`.venv/bin/python analysis/validate_data_md.py`)
 - delta: none (identical bytes to the pinned vintage)
+
+## 2026-09-22 — pull from shillerdata.com CDN (backfilled 2026-09-23; the pull was not logged at the time)
+
+- sha256: `044196dafe44c3030b2facbdea023975b3f6aa68b4e52f8f9bafc403e19589c1` (1,674,752 bytes) — same as §1.1 pin; same as the 2026-09-17 entry (byte-identical pull)
+- last saved: 2026-09-02 14:25:11 (OLE; doc-normalized Wed Sep 2 15:25:11 2026) by `Laurence Black`; created 2000-07-15; author `RShiller`
+- notes row: `Sept price is Sept 1st close` / `Oct '25/Aug/Sept CPI estimated` / `Sept GS10 is Sept 1st value`
+- last row: **2026.09**; K (last CPI): **333.8925**
+- delta: none (identical bytes to the pinned vintage)
+- backfill evidence: byte-identity verified 2026-09-23 as the on-disk sha256 against the §1.1 pin; git history proves only that no commit touching `data/` since `89849ed` changed the file's bytes (`011f4f8`, `4c36ef0`, `039223c`; the `.xls` was never committed). No `suite:` line: the recorder-only field, not recorded at pull time.

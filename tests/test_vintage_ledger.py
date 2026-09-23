@@ -264,15 +264,21 @@ def test_parse_stanzas_strict() -> None:
         assert vl.parse_ledger(bad)[1] == [], bad
 
 
-def test_parse_ledger_seed_entry_and_old_entry() -> None:
+def test_parse_ledger_seed_entry_and_backfill_entry() -> None:
     entries, _ = vl.parse_ledger(
         (REPO_ROOT / "data" / "RUNLOG.md").read_text(encoding="utf-8")
     )
-    assert len(entries) == 1
-    latest = entries[0]
-    assert latest.date == "2026-09-17"
-    assert latest.sha256 == PIN  # backticks in the seed entry are tolerated
-    assert latest.k == "333.8925"  # ** emphasis is tolerated
+    # Two committed entries: the 2026-09-17 seed and the backfilled
+    # 2026-09-22 byte-identical pull (the latest).
+    assert len(entries) == 2
+    seed, latest = entries
+    assert seed.date == "2026-09-17"
+    assert seed.sha256 == PIN  # backticks in the seed entry are tolerated
+    assert seed.k == "333.8925"  # ** emphasis is tolerated
+    assert seed.last_row == "2026.09"
+    assert latest.date == "2026-09-22"  # the backfill entry covers the disk vintage
+    assert latest.sha256 == PIN
+    assert latest.k == "333.8925"
     assert latest.last_row == "2026.09"
 
     entries, _ = vl.parse_ledger(OLD_ENTRY)
