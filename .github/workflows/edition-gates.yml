@@ -14,6 +14,29 @@ jobs:
       - uses: astral-sh/setup-uv@v5
       - name: Lock the environment
         run: uv sync --locked
+      - name: Obtain data/ie_data.xls (data/RUNLOG.md step 1)
+        run: |
+          set -euo pipefail
+          url="$(curl -fsSL https://shillerdata.com/ | grep -oE '(https?:)?//[^"<> ]*ie_data\\.xls\?ver=[^"<> ]*' | head -n 1)"
+          if [ -z "$url" ]; then
+            echo "no ie_data.xls ?ver= CDN blob href found on shillerdata.com" >&2
+            exit 1
+          fi
+          # The live page serves a scheme-relative href (//host/...); normalize to absolute.
+          case "$url" in
+            //*) url="https:$url" ;;
+          esac
+          curl -fsSL "$url" -o data/ie_data.xls
+      - name: Byte-verify against the DATA.md section 1.1 pin
+        run: |
+          set -euo pipefail
+          expected="$(grep -oE 'sha256: [0-9a-f]{64}' data/DATA.md | head -n 1 | cut -d' ' -f2)"
+          actual="$(sha256sum data/ie_data.xls | cut -d' ' -f1)"
+          if [ "$expected" != "$actual" ]; then
+            echo "vintage pin mismatch: expected $expected, got $actual" >&2
+            exit 1
+          fi
+          echo "vintage pin verified: $actual"
       - name: ruff lint
         run: uv run ruff check .
       - name: ruff format
@@ -33,11 +56,15 @@ jobs:
       - name: Obtain data/ie_data.xls (data/RUNLOG.md step 1)
         run: |
           set -euo pipefail
-          url="$(curl -fsSL https://shillerdata.com/ | grep -oE 'https?://[^"<> ]*ie_data\.xls\?ver=[^"<> ]*' | head -n 1)"
+          url="$(curl -fsSL https://shillerdata.com/ | grep -oE '(https?:)?//[^"<> ]*ie_data\\.xls\?ver=[^"<> ]*' | head -n 1)"
           if [ -z "$url" ]; then
             echo "no ie_data.xls ?ver= CDN blob href found on shillerdata.com" >&2
             exit 1
           fi
+          # The live page serves a scheme-relative href (//host/...); normalize to absolute.
+          case "$url" in
+            //*) url="https:$url" ;;
+          esac
           curl -fsSL "$url" -o data/ie_data.xls
       - name: Byte-verify against the DATA.md section 1.1 pin
         run: |
