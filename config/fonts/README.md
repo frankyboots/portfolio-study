@@ -29,13 +29,13 @@ from fontTools.varLib import instancer
 # SourceSerif4-Regular.ttf
 font = TTFont("SourceSerif4[opsz,wght].ttf", recalcTimestamp=False)
 instancer.instantiateVariableFont(font, {"wght": 400, "opsz": 20}, inplace=True)
-font.recalcTimestamp = False          # no head.modified rewrite on save
+font.recalcTimestamp = False  # no head.modified rewrite on save
 font.save("SourceSerif4-Regular.ttf")
 
 # SourceSerif4-Bold.ttf
 font = TTFont("SourceSerif4[opsz,wght].ttf", recalcTimestamp=False)
 instancer.instantiateVariableFont(font, {"wght": 700, "opsz": 20}, inplace=True)
-for rec in font["name"].names:        # pin the subfamily naming
+for rec in font["name"].names:  # pin the subfamily naming
     if rec.platformID == 3 and rec.platEncID == 1 and rec.langID == 1033:
         if rec.nameID == 2:
             rec.string = "Bold"
