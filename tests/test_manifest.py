@@ -222,12 +222,29 @@ def test_manifest_script_run_is_a_refusal_exit_two() -> None:
     assert "not a CLI" in combined
 
 
-def test_no_analysis_module_touches_the_manifest() -> None:
+def test_no_analysis_module_writes_the_manifest() -> None:
+    """The manifest is written only by the runner (scripts/manifest.py).
+
+    Story 1.6's pinned BUILD-HEAD chain is the single sanctioned
+    exception: ``analysis/figures/_records.py`` reads the on-disk
+    ``manifest.json`` ``build.head`` as the second link of the chain
+    (git short HEAD -> manifest build.head -> nogit). That reader must
+    stay read-only; every other analysis module must not reference the
+    manifest at all.
+    """
     offenders = []
+    reader = REPO_ROOT / "analysis" / "figures" / "_records.py"
     for path in sorted(REPO_ROOT.glob("analysis/**/*.py")):
         rel_parts = path.relative_to(REPO_ROOT).parts
         if "_archive" in rel_parts:
             continue
+        if path == reader:
+            continue
         if "manifest.json" in path.read_text(encoding="utf-8"):
             offenders.append("/".join(rel_parts))
     assert not offenders, f"analysis/ module(s) touching manifest.json: {offenders}"
+    # The sanctioned reader: read-only. No manifest line may be written.
+    for line in reader.read_text(encoding="utf-8").splitlines():
+        assert not ("manifest" in line.lower() and "write" in line.lower()), (
+            f"the BUILD-HEAD manifest reader must stay read-only: {line.strip()}"
+        )

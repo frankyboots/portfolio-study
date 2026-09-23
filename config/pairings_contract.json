@@ -1,0 +1,64 @@
+{
+  "_note": "Legal foreground x ground pairings (Pass 1.1, 2026-09-23). Machine-readable mirror of the planning-artifact pairings-contract.yaml; source of truth for gate 4. Ratios re-verified against the WCAG 2.x relative-luminance formula at story 1.6: rule/dark recorded 5.46 was stale and is corrected to 4.88 here. Any pairing absent from this file is a build failure; no waiver vector exists.",
+  "banned_examples": [
+    "any data-* hue on dark (2.42/1.60/2.65) — dark surfaces carry text, not series",
+    "accent-red-bright on paper/paper2 (7.72/6.87) — reserved as dark-ground stamp border",
+    "ink/ink2 on dark (1.02/1.29)",
+    "gold on dark (3.95)"
+  ],
+  "grounds": {
+    "dark": "#0e0c08",
+    "paper": "#faf6ea",
+    "paper2": "#f0e9d3"
+  },
+  "pairings": [
+    {"fg": "ink", "on": "paper", "ratio": 18.41, "roles": ["text-normal"]},
+    {"fg": "ink", "on": "paper2", "ratio": 16.38, "roles": ["text-normal"]},
+    {"fg": "ink2", "on": "paper", "ratio": 14.06, "roles": ["text-normal"]},
+    {"fg": "ink2", "on": "paper2", "ratio": 12.52, "roles": ["text-normal"]},
+    {"fg": "rule", "on": "paper", "min_px": 1, "ratio": 3.71, "roles": ["non-text"]},
+    {"fg": "rule", "on": "paper2", "min_px": 1, "ratio": 3.3, "roles": ["non-text"]},
+    {"fg": "rule", "on": "dark", "min_px": 1, "ratio": 4.88, "roles": ["non-text"]},
+    {"fg": "faded", "on": "paper", "ratio": 4.78, "roles": ["text-normal"]},
+    {"fg": "faded", "on": "paper2", "ratio": 4.26, "roles": ["text-large"]},
+    {
+      "fg": "faded",
+      "on": "dark",
+      "note": "conflicts with DESIGN.md's on-dark ticker sub-metadata at 11.5px — flagged for Pass 2 ticker spec",
+      "ratio": 3.78,
+      "roles": ["text-large"]
+    },
+    {"fg": "accent-red", "on": "paper", "ratio": 11.3, "roles": ["text-normal"]},
+    {"fg": "accent-red", "on": "paper2", "ratio": 10.06, "roles": ["text-normal"]},
+    {
+      "fg": "accent-red-bright",
+      "on": "dark",
+      "note": "stamp border on dark only; never text, never information-carrying",
+      "ratio": 2.34,
+      "roles": ["decorative"]
+    },
+    {"fg": "gold", "on": "paper", "ratio": 4.58, "roles": ["text-large"]},
+    {"fg": "gold", "on": "paper2", "ratio": 4.08, "roles": ["text-large"]},
+    {"fg": "data-good", "on": "paper", "ratio": 7.46, "roles": ["data-series", "text-normal"]},
+    {"fg": "data-good", "on": "paper2", "ratio": 6.64, "roles": ["data-series", "text-normal"]},
+    {"fg": "data-bad", "on": "paper", "ratio": 11.3, "roles": ["data-series", "text-normal"]},
+    {"fg": "data-bad", "on": "paper2", "ratio": 10.06, "roles": ["data-series", "text-normal"]},
+    {"fg": "data-neutral", "on": "paper", "ratio": 6.81, "roles": ["data-series", "text-normal"]},
+    {"fg": "data-neutral", "on": "paper2", "ratio": 6.06, "roles": ["data-series", "text-normal"]},
+    {"fg": "cream", "on": "paper", "ratio": 1.07, "roles": []},
+    {"fg": "cream", "on": "dark", "ratio": 16.84, "roles": ["text-normal"]}
+  ],
+  "tokens": {
+    "accent-red": "#6b1212",
+    "accent-red-bright": "#9e0d0d",
+    "cream": "#f4eedb",
+    "data-bad": "#6b1212",
+    "data-good": "#2e5a24",
+    "data-neutral": "#5c554a",
+    "faded": "#776c56",
+    "gold": "#8f6a1a",
+    "ink": "#0b0906",
+    "ink2": "#2b251a",
+    "rule": "#8a7e63"
+  }
+}

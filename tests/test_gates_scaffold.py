@@ -1,8 +1,11 @@
 """Eight-gate scaffold tests (story 1.5 / AD-8 seed rules).
 
 Covers the CLI mirror contract (usage, bad root, zero-arg default) for
-the five new gate CLIs, and for each of gates 4-7: the structural pass
-on today's tree and every seed violation from the spec matrix. Gate 5
+the five new gate CLIs, and each gate's structural pass plus its
+fail-safe paths (git loud-fail, corrupt inputs). The per-violation-class
+matrices for gates 4 and 7 live in tests/test_gate4_floor.py and
+tests/test_gate7_freshness.py (story 1.6 retired the "committed exports
+fail" seed rules: committed, fresh exports are the expected state). Gate 5
 additionally covers the committed-manifest render-registry contract
 (dangling and out-of-order depends_on, non-list registry, missing route).
 """
@@ -80,6 +83,12 @@ def stage_minimal(tmp_path: Path) -> Path:
         staged / "artifacts",
         ignore=shutil.ignore_patterns("__pycache__"),
     )
+    # Gates 4 and 7 import analysis.figures from the staged root itself.
+    shutil.copytree(
+        REPO_ROOT / "analysis",
+        staged / "analysis",
+        ignore=shutil.ignore_patterns("__pycache__"),
+    )
     (staged / "data").mkdir()
     shutil.copy2(REPO_ROOT / "data" / "DATA.md", staged / "data" / "DATA.md")
     return staged
@@ -126,17 +135,6 @@ def test_gate4_structural_pass(tmp_path: Path) -> None:
     result = run_cli("check_accessibility_floor.py", str(staged))
     assert result.returncode == 0, result.stderr
     assert "OK: accessibility floor" in result.stdout
-
-
-def test_gate4_committed_export_is_a_seed_violation(tmp_path: Path) -> None:
-    staged = stage_minimal(tmp_path)
-    (staged / "artifacts" / "series" / "stray.png").write_bytes(b"\x89PNG")
-    (staged / "web").mkdir()
-    (staged / "web" / "hero.svg").write_text("<svg/>", encoding="utf-8")
-    result = run_cli("check_accessibility_floor.py", str(staged))
-    assert result.returncode == 1
-    assert "artifacts/series/stray.png" in result.stderr
-    assert "web/hero.svg" in result.stderr
 
 
 def test_gate4_missing_matplotlibrc_is_a_violation(tmp_path: Path) -> None:
@@ -362,20 +360,14 @@ def test_gate6_non_dataset_lines_are_ignored(tmp_path: Path) -> None:
 # ---------------------------------------------------------------- gate 7
 
 
-def test_gate7_no_exports_is_structural_pass(tmp_path: Path) -> None:
+def test_gate7_no_figures_is_structural_pass(tmp_path: Path) -> None:
+    # No analysis/figures at all: nothing registered to check.
     staged = stage_minimal(tmp_path)
+    shutil.rmtree(staged / "analysis" / "figures")
     result = run_cli("check_export_freshness.py", str(staged))
     assert result.returncode == 0
     assert "OK: export freshness" in result.stdout
-
-
-def test_gate7_committed_export_fails(tmp_path: Path) -> None:
-    staged = stage_minimal(tmp_path)
-    (staged / "manual").mkdir()
-    (staged / "manual" / "hero.png").write_bytes(b"\x89PNG")
-    result = run_cli("check_export_freshness.py", str(staged))
-    assert result.returncode == 1
-    assert "manual/hero.png" in result.stderr
+    assert "no analysis/figures" in result.stdout
 
 
 def test_gate7_git_failure_is_loud_fail(tmp_path: Path) -> None:
@@ -383,7 +375,7 @@ def test_gate7_git_failure_is_loud_fail(tmp_path: Path) -> None:
     (staged / ".git").mkdir()
     result = run_cli("check_export_freshness.py", str(staged))
     assert result.returncode == 1
-    assert "cannot list committed exports" in result.stderr
+    assert "cannot stage tree" in result.stderr
     assert "not a git repository" in result.stderr
 
 

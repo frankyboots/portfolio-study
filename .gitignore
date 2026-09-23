@@ -13,3 +13,7 @@ __pycache__/
 .mypy_cache/
 .pytest_cache/
 .ruff_cache/
+
+# matplotlib font cache: pipeline stages point MPLCONFIGDIR at config/,
+# where matplotlib writes its fontlist cache — build scratch, not config.
+config/fontlist*.json

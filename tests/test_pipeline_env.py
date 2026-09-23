@@ -101,6 +101,7 @@ def test_pipeline_happy_path_exits_zero_with_envelope_and_stage(
         "import-wall",
         "series",
         "comparator",
+        "figures",
         "vintage-integrity",
         "suite",
         "repro",
@@ -117,6 +118,8 @@ def test_pipeline_happy_path_exits_zero_with_envelope_and_stage(
     assert "OK: vintage integrity" in result.stdout
     assert "passed, 0 failed" in result.stdout  # gate 2 summary line
     assert "SKIP: no git tree" in result.stdout  # gate 3 on a non-git staged root
+    assert "stage 'figures': OK" in result.stdout
+    assert "built 1 figure" in result.stdout  # the pilot figure rendered in-process
     assert "tree-check: no .git at root" in result.stdout
     assert "pipeline: all stages OK" in result.stdout
 

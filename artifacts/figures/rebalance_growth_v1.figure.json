@@ -1,0 +1,216 @@
+{
+  "alt_text": {
+    "alt_text": "Line chart of 2 real 60/40 growth-index series (annual- and monthly-rebalanced), 1871.01 to 2026.06. Axes: Year, Real growth index (log scale). Annual-rebalanced real 60/40 grows from 1.00 at 1871.01 to 4,977 at 2026.06; monthly-rebalanced grows from 1.00 to 3,868 over the same span, so annual rebalancing ends 1,109 index points above monthly. Extremes: the only sub-1.0 index readings are 0.983 at 1871.02, 0.987 at 1871.03 (both series); the span maxima are the terminal values \u2014 annual 4,977, monthly 3,868 at 2026.06. 2 series: annual-rebalanced (primary, solid) and monthly-rebalanced (baseline, dashed).",
+    "axis": {
+      "scale": "log",
+      "x_label": "Year",
+      "y_label": "Real growth index"
+    },
+    "chart_type": "line",
+    "extremes": "Extremes: the only sub-1.0 index readings are 0.983 at 1871.02, 0.987 at 1871.03 (both series); the span maxima are the terminal values \u2014 annual 4,977, monthly 3,868 at 2026.06.",
+    "pairing_applies": false,
+    "range": {
+      "end": "2026.06",
+      "period": "monthly",
+      "start": "1871.01"
+    },
+    "series": [
+      {
+        "display_name": "Annual-rebalanced 60/40, real",
+        "id": "annual_rebalanced_real",
+        "role": "primary",
+        "units": "growth index, decimal (base 1.0 at 1871.01)"
+      },
+      {
+        "display_name": "Monthly-rebalanced 60/40, real",
+        "id": "monthly_rebalanced_real",
+        "role": "baseline",
+        "units": "growth index, decimal (base 1.0 at 1871.01)"
+      }
+    ],
+    "trend": "Annual-rebalanced real 60/40 grows from 1.00 at 1871.01 to 4,977 at 2026.06; monthly-rebalanced grows from 1.00 to 3,868 over the same span, so annual rebalancing ends 1,109 index points above monthly."
+  },
+  "builder": "analysis/figures/rebalance_growth.py",
+  "canvas_px": {
+    "height": 800,
+    "width": 1200
+  },
+  "measurements": [
+    {
+      "class": "series-line",
+      "display_px": 2.604166666666667,
+      "element": "series_line_annual_rebalanced_real",
+      "render_px": 8.333333333333334
+    },
+    {
+      "class": "series-line",
+      "display_px": 2.0833333333333335,
+      "element": "series_line_monthly_rebalanced_real",
+      "render_px": 6.666666666666667
+    },
+    {
+      "class": "series-label",
+      "display_px": 18.565625000000026,
+      "element": "direct_label_annual_rebalanced_real",
+      "render_px": 59.41000000000008
+    },
+    {
+      "class": "series-label",
+      "display_px": 18.565625000000026,
+      "element": "direct_label_monthly_rebalanced_real",
+      "render_px": 59.41000000000008
+    },
+    {
+      "class": "hairline",
+      "display_px": 1.3020833333333335,
+      "element": "leader_annual_rebalanced_real",
+      "render_px": 4.166666666666667
+    },
+    {
+      "class": "hairline",
+      "display_px": 1.3020833333333335,
+      "element": "leader_monthly_rebalanced_real",
+      "render_px": 4.166666666666667
+    },
+    {
+      "class": "caption-class",
+      "display_px": 18.565624999999997,
+      "element": "tick_labels",
+      "render_px": 59.41
+    },
+    {
+      "class": "caption-class",
+      "display_px": 110.6640625,
+      "element": "axis_titles",
+      "render_px": 354.125
+    },
+    {
+      "class": "mono-stamp",
+      "display_px": 16.02644588332965,
+      "element": "stamp_text",
+      "render_px": 51.284626826654886
+    },
+    {
+      "class": "hairline",
+      "display_px": 0.5208333333333334,
+      "element": "gridlines",
+      "render_px": 1.6666666666666667
+    },
+    {
+      "class": "hairline",
+      "display_px": 0.78125,
+      "element": "spines",
+      "render_px": 2.5
+    },
+    {
+      "class": "hairline",
+      "display_px": 0.625,
+      "element": "stamp_border",
+      "render_px": 2.0
+    }
+  ],
+  "name": "rebalance_growth_v1",
+  "series": [
+    {
+      "dash": "solid",
+      "display_name": "Annual-rebalanced 60/40, real",
+      "fg": "data-good",
+      "id": "annual_rebalanced_real",
+      "on": "paper",
+      "role": "primary",
+      "units": "growth index, decimal (base 1.0 at 1871.01)"
+    },
+    {
+      "dash": "dashed",
+      "display_name": "Monthly-rebalanced 60/40, real",
+      "fg": "data-neutral",
+      "id": "monthly_rebalanced_real",
+      "on": "paper",
+      "role": "baseline",
+      "units": "growth index, decimal (base 1.0 at 1871.01)"
+    }
+  ],
+  "source_artifacts": [
+    "canonical_60_40_annual_v1",
+    "canonical_60_40_monthly_v1"
+  ],
+  "stamp": "\u25ae VINTAGE 2026-09 \u00b7 BUILD-HEAD 63b92cd \u00b7 analysis/figures/rebalance_growth.py",
+  "style_declarations": [
+    {
+      "element": "series_line",
+      "fg": "data-good",
+      "on": "paper",
+      "role": "data-series"
+    },
+    {
+      "element": "series_line",
+      "fg": "data-neutral",
+      "on": "paper",
+      "role": "data-series"
+    },
+    {
+      "element": "direct_labels",
+      "fg": "data-good",
+      "on": "paper",
+      "role": "text-normal"
+    },
+    {
+      "element": "direct_labels",
+      "fg": "data-neutral",
+      "on": "paper",
+      "role": "text-normal"
+    },
+    {
+      "element": "leader_annual_rebalanced_real",
+      "fg": "data-good",
+      "min_px": 1,
+      "on": "paper",
+      "role": "non-text"
+    },
+    {
+      "element": "leader_monthly_rebalanced_real",
+      "fg": "data-neutral",
+      "min_px": 1,
+      "on": "paper",
+      "role": "non-text"
+    },
+    {
+      "element": "tick_labels",
+      "fg": "ink",
+      "on": "paper",
+      "role": "text-normal"
+    },
+    {
+      "element": "axis_titles",
+      "fg": "ink",
+      "on": "paper",
+      "role": "text-normal"
+    },
+    {
+      "element": "stamp_text",
+      "fg": "accent-red",
+      "on": "paper",
+      "role": "text-normal"
+    },
+    {
+      "element": "stamp_border",
+      "fg": "accent-red",
+      "on": "paper",
+      "role": "non-text"
+    },
+    {
+      "element": "gridlines",
+      "fg": "rule",
+      "min_px": 1,
+      "on": "paper",
+      "role": "non-text"
+    },
+    {
+      "element": "spines",
+      "fg": "rule",
+      "min_px": 1,
+      "on": "paper",
+      "role": "non-text"
+    }
+  ]
+}
