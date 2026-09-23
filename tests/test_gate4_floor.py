@@ -209,3 +209,41 @@ def test_missing_export_fails(gate4_case: Path) -> None:
     rc, out = run_gate(gate4_case)
     assert rc == 1
     assert "export" in out.lower()
+
+
+def test_orphaned_export_without_record_fails(gate4_case: Path) -> None:
+    """An export without a .figure.json record is an unbuilt artifact."""
+    figs = gate4_case / "artifacts" / "figures"
+    (figs / "retired_v1.png").write_bytes(b"\x89PNG\r\n\x1a\nfake")
+    rc, out = run_gate(gate4_case)
+    assert rc == 1
+    assert "retired_v1.png" in out
+    assert "orphan" in out.lower()
+
+
+def test_contract_role_claim_below_threshold_fails(gate4_case: Path) -> None:
+    """faded/dark recomputes to 3.78: it satisfies text-large (3.0) but not
+    text-normal (4.5), so claiming text-normal on the row fails."""
+    contract = gate4_case / "config" / "pairings_contract.json"
+    doc = json.loads(contract.read_text(encoding="utf-8"))
+    for row in doc["pairings"]:
+        if row["fg"] == "faded" and row["on"] == "dark":
+            row["roles"] = ["text-large", "text-normal"]
+    contract.write_text(
+        json.dumps(doc, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    rc, out = run_gate(gate4_case)
+    assert rc == 1
+    assert "faded" in out and "text-normal" in out
+
+
+def test_render_px_below_declared_min_px_fails(gate4_case: Path) -> None:
+    def mutate(doc):
+        for m in doc["measurements"]:
+            if m["element"] == "leader_monthly_rebalanced_real":
+                m["render_px"] = 0.5  # declared min_px for the element is 1
+
+    _rewrite_record(gate4_case, mutate)
+    rc, out = run_gate(gate4_case)
+    assert rc == 1
+    assert "min_px" in out

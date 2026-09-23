@@ -6,16 +6,21 @@ Checks, per the story 1.6 Decisions:
 1. ``config/matplotlibrc`` exists (the locked style source).
 2. ``config/pairings_contract.json`` is well-formed: every pairing row's
    recorded contrast ratio matches the WCAG ratio recomputed from its
-   fg/on hex tokens (+/-0.01), every claimed role is satisfied by that
-   ratio (text-normal >=4.5, text-large >=3.0, non-text >=3.0,
-   data-series >=3.0, decorative exempt), and no row carries an empty
-   role list.
+   fg/on hex tokens (+/-0.01), and every role listed on a row is
+   satisfied by that ratio (text-normal >=4.5, text-large >=3.0,
+   non-text >=3.0, data-series >=3.0, decorative exempt). A row whose
+   ``roles`` list is EMPTY is not a violation: empty roles are the
+   contract's banned-pairing mechanism (the row is retained to keep the
+   ban machine-readable); its ratio is still spot-checked, but no role
+   may be claimed against it.
 3. Every committed figure record (``artifacts/figures/*.figure.json``,
    on-disk when the root has no ``.git``) passes:
    - alt-text v1 schema completeness (the pinned field set, typed and
      non-empty; unknown fields fail),
    - every fg/on pairing named in the style declarations exists in the
-     contract with the declared role claimed (unknown pairing fails),
+     contract and its recomputed ratio satisfies the declared role's
+     threshold (unknown pairing fails; the contract's per-row ``roles``
+     list is an intended-use annotation, not an allowlist),
    - recorded display-px measurements meet the 375px floors
      (series-label >=11, caption-class >=13, mono-stamp >=11,
      series-line >=2; a text-large role additionally >=14),
@@ -120,6 +125,8 @@ def load_contract(root: Path) -> tuple[dict, list[str]]:
         doc = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
         return {}, [f"{CONTRACT_REL}: not valid JSON: {exc}"]
+    if not isinstance(doc, dict):
+        return {}, [f"{CONTRACT_REL}: top-level JSON is not an object"]
     for group in ("tokens", "grounds"):
         values = doc.get(group)
         if not isinstance(values, dict) or not values:
@@ -371,10 +378,13 @@ def check_measurements(name: str, record: dict) -> list[str]:
                 f"{name}: text-large element {element!r} has no recorded measurement"
             )
         for m in matches:
-            if float(m.get("display_px", 0)) < accessibility.TEXT_LARGE_DISPLAY_PX:
+            display = m.get("display_px")
+            if not isinstance(display, (int, float)):
+                continue  # already flagged as a non-numeric measurement
+            if float(display) < accessibility.TEXT_LARGE_DISPLAY_PX:
                 violations.append(
                     f"{name}: measurement {m.get('element')!r}: text-large display_px "
-                    f"{m.get('display_px')!r} below {accessibility.TEXT_LARGE_DISPLAY_PX}"
+                    f"{display!r} below {accessibility.TEXT_LARGE_DISPLAY_PX}"
                 )
     return violations
 
@@ -474,13 +484,20 @@ def main(argv: list[str] | None = None) -> int:
             if expected not in export_set:
                 violations.append(f"{rel}: missing export {expected}")
 
+    record_stems = {rel[: -len(RECORD_SUFFIX)] for rel in records}
+    for rel in exports:
+        if rel.rsplit(".", 1)[0] not in record_stems:
+            violations.append(
+                f"{rel}: orphaned export without a matching {RECORD_SUFFIX} record"
+            )
+
     if violations:
         for v in violations:
             print(v, file=sys.stderr)
         print(
             f"FAIL: accessibility floor: {len(violations)} violation(s) "
             "(contract well-formedness, alt-text v1 schema, known pairings with "
-            "satisfied roles, 375px floors, grayscale survival)"
+            "satisfied roles, 375px floors, grayscale survival, orphaned exports)"
         )
         return 1
     print(

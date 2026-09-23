@@ -10,6 +10,19 @@ points at system fonts, so exports are byte-stable across machines.
 | `SourceSerif4-Bold.ttf` | Source Serif 4 | Bold | `cfcae605c9db5834dc6e2e5063888ad739333326f0aafe0659866b8586c939b2` |
 | `IBMPlexMono-Regular.ttf` | IBM Plex Mono | Regular | `7c6fbddca4b700be918f5f6183d9bd4464fa427fe435f0b480d77fe2bb8c5a43` |
 
+Sources (fetched 2026-09-23; upstream sha256 pinned so a re-pull can
+verify byte identity before instancing):
+
+- `SourceSerif4-Regular.ttf` / `SourceSerif4-Bold.ttf`: static instances
+  cut from the OFL variable font
+  [`SourceSerif4[opsz,wght].ttf` (google/fonts,
+  `97b2d4da6e3cb494b5a1e66ae176914d852ccabef49e0c02c0df25f3e39aca0b`)](https://github.com/google/fonts/raw/main/ofl/sourceserif4/SourceSerif4%5Bopsz%2Cwght%5D.ttf)
+  with the recipe below.
+- `IBMPlexMono-Regular.ttf`: the stock static Regular TTF, committed as
+  downloaded — no instancing involved — from
+  [ibm/plex](https://github.com/ibm/plex/raw/master/packages/plex-mono/fonts/complete/ttf/IBMPlexMono-Regular.ttf)
+  (upstream sha256 `7c6fbddc…8c5a43`, identical to the table above).
+
 Both typefaces are released under the SIL Open Font License 1.1
 (Source Serif 4: adobe/source-serif; IBM Plex Mono: ibm/plex). The
 variable-font source is not committed; these static instances are the
@@ -19,8 +32,9 @@ commit.
 
 Pinned environment (Python 3.12, `fonttools` 4.65.0 — a transitive
 dependency of matplotlib, already in the lock). Source variable font:
-`SourceSerif4[opsz,wght].ttf` from the adobe/source-serif (or
-google/fonts) repository, axes `wght` 200–900 and `opsz` 8–60.
+`SourceSerif4[opsz,wght].ttf` from the google/fonts repository (URL and
+upstream sha256 in the Sources list above), axes `wght` 200–900 and
+`opsz` 8–60.
 
 ```python
 from fontTools.ttLib import TTFont

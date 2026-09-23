@@ -31,6 +31,34 @@ from analysis.figures import (
 
 FIGURE_NAME = "rebalance_growth_v1"
 
+
+def _staged_copy_ignore(dirpath: str, dirnames: list[str]) -> list[str]:
+    """Staged-copy filter: drop pycache and ONLY the exports dir.
+
+    ``artifacts/figures`` (the generated exports) is excluded so the
+    build regenerates them; ``analysis/figures`` (the builder code)
+    stays in the staged tree — a blanket ``"figures"`` pattern would
+    wrongly drop the code directory too. (The returned names are the
+    ones copytree skips.)
+    """
+    ignored = [d for d in dirnames if d == "__pycache__"]
+    if Path(dirpath).name == "artifacts" and "figures" in dirnames:
+        ignored.append("figures")
+    return ignored
+
+
+def _stage_repo(staged: Path) -> None:
+    for name in ("analysis", "config", "artifacts"):
+        shutil.copytree(
+            REPO_ROOT / name,
+            staged / name,
+            ignore=_staged_copy_ignore,
+        )
+    # Matplotlib font-cache files are build noise, not tree content.
+    for stray in staged.glob("**/fontlist*.json"):
+        stray.unlink()
+
+
 ALT_TEXT_KEYS = {
     "alt_text",
     "axis",
@@ -52,12 +80,7 @@ MEASUREMENT_CLASSES = {"caption-class", "series-label", "series-line", "mono-sta
 def built_root(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """A .git-less repo-shaped root with the pilot figure built in-process."""
     staged = tmp_path_factory.mktemp("pilot") / "repo"
-    for name in ("analysis", "config", "artifacts"):
-        shutil.copytree(
-            REPO_ROOT / name,
-            staged / name,
-            ignore=shutil.ignore_patterns("__pycache__", "fontlist*.json", "figures"),
-        )
+    _stage_repo(staged)
     rc = rebalance_growth.build_figure(staged)
     assert rc == 0, f"pilot build failed on a clean staged root (exit {rc})"
     return staged
@@ -252,14 +275,7 @@ def test_tampered_input_changes_the_record(built_root: Path) -> None:
     rec_before = _record(built_root)
     with tempfile.TemporaryDirectory() as tmp:
         staged = Path(tmp) / "repo"
-        for name in ("analysis", "config", "artifacts"):
-            shutil.copytree(
-                REPO_ROOT / name,
-                staged / name,
-                ignore=shutil.ignore_patterns(
-                    "__pycache__", "fontlist*.json", "figures"
-                ),
-            )
+        _stage_repo(staged)
         # Tamper: double the annual terminal real value (the real column is 2nd).
         annual = staged / "artifacts" / "series" / "canonical_60_40_annual_v1.csv"
         lines = annual.read_text(encoding="utf-8").splitlines()
@@ -298,3 +314,126 @@ def test_malformed_stamps_are_rejected() -> None:
     nogit_parsed = _records.parse_stamp(nogit)
     assert nogit_parsed is not None
     assert nogit_parsed["build_head"] == "nogit"
+
+
+# ---------------------------------------------------------------- geometry
+
+
+def test_parse_dates_maps_month_to_calendar_year_fraction() -> None:
+    """DATA.md §2: the decimal YYYY.MM codes are CALENDAR months.
+
+    x must be year + (month-1)/12 and strictly monotone across the
+    series; the pre-fix mapping regressed ~156 times per year at the
+    11 -> 1 wrap.
+    """
+    import pandas as pd
+
+    decimals = pd.read_csv(
+        REPO_ROOT / "artifacts" / "series" / "canonical_60_40_monthly_v1.csv"
+    )["date"]
+    xs = rebalance_growth._parse_dates(decimals)
+    diff = xs.diff().dropna()
+    assert (diff > 0).all(), (
+        "x mapping regresses: the date axis must be strictly monotone "
+        f"(min diff {diff.min()})"
+    )
+    years = decimals.astype(float).astype(int)
+    months = (
+        (decimals - years).apply(lambda dt: round((dt - int(dt)) * 100)).clip(1, 12)
+    )
+    expected = years + (months - 1) / 12.0
+    assert (xs == expected).all()
+    i = decimals.index[decimals == 1871.10][0]  # 1871.1 == October 1871
+    assert xs.loc[i] == 1871.0 + 9.0 / 12.0
+
+
+def test_stamp_frame_bbox_matches_across_formats(built_root: Path) -> None:
+    """The frame's corners are BAKED into figure fractions.
+
+    The old dpi-dependent transform chain disagreed between the Agg
+    and SVG backends (~18px on the bottom edge); the baked Polygon must
+    land the same place in both exports. The SVG works in points
+    (viewBox = canvas px x 72/DPI); both are converted to canvas px
+    (y-down) before comparing.
+    """
+    import numpy as np
+    from PIL import Image
+
+    from analysis.figures import style
+
+    pt_per_px = 72.0 / style.DPI
+    viewBox = (
+        f'viewBox="0 0 {style.CANVAS_PX[0] * pt_per_px:g} '
+        f'{style.CANVAS_PX[1] * pt_per_px:g}"'
+    )
+    figdir = built_root / "artifacts" / "figures"
+    svg = (figdir / f"{FIGURE_NAME}.svg").read_text(encoding="utf-8")
+    assert viewBox in svg, (
+        f"the canvas must be pinned to {style.CANVAS_PX} in the SVG viewBox"
+    )
+    frame_group = re.search(r'<g id="release-stamp-frame">(.*?)</g>', svg, re.DOTALL)
+    assert frame_group is not None, "the frame must carry the release-stamp-frame gid"
+    path_d = re.search(r'd="([^"]+)"', frame_group.group(1))
+    assert path_d is not None, "the frame group must contain a path"
+    nums = [float(v) for v in re.findall(r"-?\d+(?:\.\d+)?", path_d.group(1))]
+    assert len(nums) >= 8 and len(nums) % 2 == 0, (
+        f"frame path must carry at least 4 corners, got {len(nums) / 2} points"
+    )
+    corners = list(zip(nums[0::2], nums[1::2]))  # closed paths repeat p0
+    svg_bbox = tuple(
+        v * (style.DPI / 72.0)
+        for v in (
+            min(x for x, _ in corners),
+            min(y for _, y in corners),
+            max(x for x, _ in corners),
+            max(y for _, y in corners),
+        )
+    )  # SVG pts -> canvas px
+
+    contract = json.loads(
+        (built_root / "config" / "pairings_contract.json").read_text(encoding="utf-8")
+    )
+    accent = contract["tokens"]["accent-red"]
+    target = tuple(int(accent[i : i + 2], 16) for i in (1, 3, 5))
+    arr = np.asarray(Image.open(figdir / f"{FIGURE_NAME}.png").convert("RGB"))
+    mask = (arr == np.array(target)).all(axis=2)
+    ys, xs = np.where(mask)
+    assert len(xs), "no accent-red pixels in the PNG"
+    png_bbox = (float(xs.min()), float(ys.min()), float(xs.max()), float(ys.max()))
+
+    # The 2px frame's core pixels sit within a pixel of the baked
+    # corners; 2px tolerance absorbs anti-aliasing on both sides.
+    for where, (s, p) in enumerate(zip(svg_bbox, png_bbox)):
+        assert abs(s - p) < 2.0, (
+            f"stamp frame bbox disagrees across formats (side {where}): "
+            f"SVG {svg_bbox} vs PNG {png_bbox}"
+        )
+
+
+def test_build_head_is_the_git_short_head(tmp_path: Path) -> None:
+    """First BUILD-HEAD chain link: a .git root resolves to short HEAD."""
+    import subprocess
+
+    staged = tmp_path / "repo"
+    _stage_repo(staged)
+    for args in (
+        ("init", "-q"),
+        ("config", "user.email", "test@example.com"),
+        ("config", "user.name", "test"),
+        ("add", "-A"),
+        ("commit", "-q", "-m", "seed"),
+    ):
+        subprocess.run(
+            ["git", "-C", str(staged), *args], check=True, capture_output=True
+        )
+    head = subprocess.run(
+        ["git", "-C", str(staged), "rev-parse", "--short", "HEAD"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    rc = rebalance_growth.build_figure(staged)
+    assert rc == 0
+    parsed = _records.parse_stamp(_record(staged)["stamp"])
+    assert parsed is not None
+    assert parsed["build_head"] == head

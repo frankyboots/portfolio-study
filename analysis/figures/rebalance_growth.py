@@ -33,8 +33,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from matplotlib.patches import Rectangle
-from matplotlib.transforms import Affine2D
+from matplotlib.patches import Polygon
 
 from analysis.figures import _records, style
 
@@ -101,21 +100,22 @@ LEADER_X_PX: dict[str, float] = {
 }
 LEADER_LW_PT = 1.25
 
-STAMP_ANCHOR_PX = (38.0, 44.0)
+STAMP_ANCHOR_PX = (48.0, 44.0)
 
 
 def _parse_dates(decimals: pd.Series) -> pd.Series:
     """Decimal YYYY.MM index -> plot x in calendar years.
 
     The dataset encodes the month as ``round((date - year) * 100)``
-    with month 1 = October (1871.1 is October 1871, DATA.md §3); plot
-    x is calendar years with the month as a fractional part.
+    with calendar month codes (DATA.md §2: 1871.01 = January 1871, so
+    the decimal value 1871.1 ≡ 1871.10 = October): plot x is the
+    calendar year plus the month's fractional position in the year.
     """
     years = decimals.astype(float).astype(int)
     months = (
         (decimals - years).apply(lambda dt: round((dt - int(dt)) * 100)).clip(1, 12)
     )
-    return years + (months + 8) % 12 / 12.0
+    return years + (months - 1) / 12.0
 
 
 def _fmt(value: float) -> str:
@@ -161,13 +161,28 @@ def _alt_text(annual: pd.DataFrame, monthly: pd.DataFrame) -> dict:
     end = str(annual["date"].iloc[-1])
 
     a_end, m_end = float(annual["real"].iloc[-1]), float(monthly["real"].iloc[-1])
-    sub1 = annual[annual["real"] < 1.0]
-    sub1_pts = ", ".join(
-        f"{_fmt(float(v))} at {d}" for d, v in zip(sub1["date"], sub1["real"])
-    )
+    # The "(both series)" claim is checked against BOTH series: the sets
+    # of sub-1.0 readings must agree, or the build fails loudly rather
+    # than emit a false alt-text sentence.
+    sub_a = set(annual.loc[annual["real"] < 1.0, "date"].astype(str))
+    sub_m = set(monthly.loc[monthly["real"] < 1.0, "date"].astype(str))
+    if sub_a != sub_m:
+        raise AssertionError(
+            "sub-1.0 readings diverge between the two series "
+            f"(annual-only: {sorted(sub_a - sub_m)}, "
+            f"monthly-only: {sorted(sub_m - sub_a)}); the '(both series)' claim "
+            "would be false"
+        )
+    if sub_a:
+        sub1 = annual[annual["real"] < 1.0]
+        sub1_pts = ", ".join(
+            f"{_fmt(float(v))} at {d}" for d, v in zip(sub1["date"], sub1["real"])
+        )
+        sub1_sentence = f"the only sub-1.0 index readings are {sub1_pts} (both series)"
+    else:
+        sub1_sentence = "no sub-1.0 index readings"
     extremes = (
-        f"Extremes: the only sub-1.0 index readings are {sub1_pts} "
-        f"(both series); the span maxima are the terminal values — "
+        f"Extremes: {sub1_sentence}; the span maxima are the terminal values — "
         f"annual {_fmt(a_end)}, monthly {_fmt(m_end)} at {end}."
     )
     trend = (
@@ -219,9 +234,16 @@ def _stamp_lines(stamp: str, script: str) -> list[str]:
     return [head, build, *path_lines]
 
 
-def _add_stamp(fig: plt.Figure, stamp: str, script: str) -> tuple[plt.Text, Rectangle]:
-    """The release stamp: compact block, mono, -2deg, inside STAMP_RECT_PX."""
-    _, y0, x1, y1 = style.STAMP_RECT_PX
+def _add_stamp(fig: plt.Figure, stamp: str, script: str) -> tuple[plt.Text, Polygon]:
+    """The release stamp: compact block, mono, -2deg, inside STAMP_RECT_PX.
+
+    The frame is drawn from corners BAKED into figure-fraction
+    coordinates: the -2deg rotation about the top-left anchor is applied
+    in y-up display px at the locked canvas dpi up front, so Agg (PNG)
+    and the SVG backend render byte-consistent geometry instead of
+    relying on a backend-dependent transform chain.
+    """
+    x0, y0, x1, y1 = style.STAMP_RECT_PX
     width, height = style.CANVAS_PX
     anchor_x, anchor_y = STAMP_ANCHOR_PX
 
@@ -244,58 +266,73 @@ def _add_stamp(fig: plt.Figure, stamp: str, script: str) -> tuple[plt.Text, Rect
     extent = text.get_window_extent(renderer)
     pad_x, pad_y = style.STAMP_PAD_X_PX, style.STAMP_PAD_Y_PX
     box_left = float(extent.x0) - pad_x
-    box_top = float(extent.y0) - pad_y
+    box_bottom = float(extent.y0) - pad_y  # y-up display px (origin bottom-left)
     box_width = float(extent.width) + 2.0 * pad_x
     box_height = float(extent.height) + 2.0 * pad_y
-    border = Rectangle(
-        (box_left / width, box_top / height),
-        box_width / width,
-        box_height / height,
+
+    # Bake the rotation into the frame corners, at the locked canvas dpi:
+    # rotate the padded box -2deg about the text anchor in y-up display px
+    # (matplotlib's rotation convention), then draw a plain Polygon in
+    # figure fractions, so Agg (PNG) and the SVG backend render
+    # byte-consistent geometry.
+    theta = math.radians(style.STAMP_ROTATION_DEG)
+    cos_t, sin_t = math.cos(theta), math.sin(theta)
+    anchor_display = (anchor_x, height - anchor_y)  # y-up display px
+    corners_display = []
+    for cx, cy in (
+        (box_left, box_bottom),
+        (box_left + box_width, box_bottom),
+        (box_left + box_width, box_bottom + box_height),
+        (box_left, box_bottom + box_height),
+    ):
+        dx, dy = cx - anchor_display[0], cy - anchor_display[1]
+        corners_display.append(
+            (
+                anchor_display[0] + dx * cos_t - dy * sin_t,
+                anchor_display[1] + dx * sin_t + dy * cos_t,
+            )
+        )
+    frame = Polygon(
+        [(x / width, y / height) for x, y in corners_display],
+        closed=True,
         transform=fig.transFigure,
         fill=False,
         edgecolor=style.token("accent-red"),
         linewidth=style.STAMP_BORDER_PX * 72.0 / style.DPI,  # 2 canvas px
         gid="release-stamp-frame",
     )
-    fig.add_artist(border)
-    # transFigure first (fraction -> display px), then the -2deg
-    # rotation about the display-space anchor.
-    border.set_transform(
-        fig.transFigure
-        + Affine2D().rotate_deg_around(
-            anchor_x, height - anchor_y, style.STAMP_ROTATION_DEG
-        )
-    )
+    fig.add_artist(frame)
 
-    # Keep-out check at the *rotated* corners (all four), converted
-    # back to canvas px from the top: the stamp's -2deg rotation about
-    # the top-left anchor swings the other corners; the worst of them
-    # must stay inside the rect.
-    theta = math.radians(style.STAMP_ROTATION_DEG)
-    cos_t, sin_t = math.cos(theta), math.sin(theta)
-    anchor_disp = (anchor_x, height - anchor_y)  # display coords (y up)
-    box_corners = [
-        (box_left, float(extent.y0) - pad_y),
-        (box_left + box_width, float(extent.y0) - pad_y),
-        (box_left + box_width, float(extent.y1) + pad_y),
-        (box_left, float(extent.y1) + pad_y),
-    ]
-    worst = {"top": math.inf, "bottom": 0.0, "right": 0.0}
-    for cx, cy in box_corners:
-        dx, dy = cx - anchor_disp[0], cy - anchor_disp[1]
-        rx = anchor_disp[0] + dx * cos_t - dy * sin_t
-        ry = anchor_disp[1] + dx * sin_t + dy * cos_t
-        canvas_y = height - ry  # px from the top
-        worst["top"] = min(worst["top"], canvas_y)
-        worst["bottom"] = max(worst["bottom"], canvas_y)
-        worst["right"] = max(worst["right"], rx)
-    if worst["top"] < y0 or worst["bottom"] > y1 or worst["right"] > x1:
+    # Keep-out check on the same baked corners the frame is drawn from,
+    # in canvas px (y-down from the top): all four sides of
+    # STAMP_RECT_PX, plus the canvas bounds. The stamp's -2deg rotation
+    # about the top-left anchor swings the other corners; the worst of
+    # them must stay inside the band.
+    corners_canvas = [(x, height - y) for x, y in corners_display]  # y-down px
+    worst = {
+        "left": min(x for x, _ in corners_canvas),
+        "top": min(y for _, y in corners_canvas),
+        "right": max(x for x, _ in corners_canvas),
+        "bottom": max(y for _, y in corners_canvas),
+    }
+    if (
+        worst["left"] < x0
+        or worst["top"] < y0
+        or worst["right"] > x1
+        or worst["bottom"] > y1
+        or worst["left"] < 0.0
+        or worst["top"] < 0.0
+        or worst["right"] > width
+        or worst["bottom"] > height
+    ):
         raise AssertionError(
-            f"stamp block escapes STAMP_RECT_PX {style.STAMP_RECT_PX}: "
-            f"top {worst['top']:.1f} (min {y0}), bottom {worst['bottom']:.1f} "
-            f"(max {y1}), right {worst['right']:.1f} (max {x1})"
+            f"stamp frame escapes STAMP_RECT_PX {style.STAMP_RECT_PX} "
+            f"or the canvas {width}x{height}: left {worst['left']:.1f} "
+            f"(min {x0}), top {worst['top']:.1f} (min {y0}), "
+            f"right {worst['right']:.1f} (max {x1}), bottom {worst['bottom']:.1f} "
+            f"(max {y1})"
         )
-    return text, border
+    return text, frame
 
 
 def _rects_overlap(a, b, gap: float = 2.0) -> bool:
@@ -311,7 +348,9 @@ def build_figure(root: Path) -> int:
     """Build, export, and record the pilot figure under ``root``.
 
     Writes ``artifacts/figures/rebalance_growth_v1.{png,svg}`` and its
-    ``.figure.json`` record; returns 0 on success, non-zero otherwise.
+    ``.figure.json`` record; returns 0 on success. Layout violations
+    (the keep-out and overlap guards) raise AssertionError instead of
+    returning a non-zero exit code.
     """
     style.apply_style()
     annual, monthly = _load_series(root)

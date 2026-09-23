@@ -187,3 +187,22 @@ def test_broken_git_dir_is_a_loud_fail(gate7_root: Path) -> None:
     assert rc == 1
     assert "cannot stage tree" in out
     assert "not a git repository" in out
+
+
+def test_retired_figure_record_fails(case_root: Path) -> None:
+    """A committed record + exports with no staged build is a retired
+    leftover: the figure is no longer in the registry, so its record
+    (the accessibility evidence) cannot stay silently in the tree."""
+    figs = case_root / FIGS_REL
+    for suffix in (".png", ".svg"):
+        (figs / f"ghost_v1{suffix}").write_bytes(
+            (figs / f"{NAME}{suffix}").read_bytes()
+        )
+    (figs / "ghost_v1.figure.json").write_text(
+        json.dumps({"name": "ghost_v1"}, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    rc, out = run_gate(case_root)
+    assert rc == 1, out
+    assert "ghost_v1" in out
+    assert "no staged build" in out

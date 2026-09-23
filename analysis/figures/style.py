@@ -5,9 +5,9 @@ calls :func:`apply_style` before touching a figure and takes every
 color from the pairings contract — figure code never carries a hex
 literal. The stylesheet locks
 
-* the canonical export canvas (1200 x 750 px; 5in x 3.125in at 240 dpi
-  — 240 dpi is what keeps the locked 2pt dash ladder at the 2 display-px
-  series-line floor),
+* the canonical export canvas (1200 x 800 px; 5in wide x 800/240 in
+  tall at the locked 240 dpi — 240 dpi is what keeps the locked 2pt
+  dash ladder at the 2 display-px series-line floor),
 * the vendored fonts (``config/fonts``; never system fonts),
 * the paper ground and ink/rule/accent tokens,
 * ``svg.fonttype = path`` plus the pinned ``svg.hashsalt`` so SVG
