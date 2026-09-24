@@ -101,6 +101,7 @@ def test_pipeline_happy_path_exits_zero_with_envelope_and_stage(
         "import-wall",
         "series",
         "comparator",
+        "metrics",
         "figures",
         "vintage-integrity",
         "suite",
@@ -119,7 +120,7 @@ def test_pipeline_happy_path_exits_zero_with_envelope_and_stage(
     assert "passed, 0 failed" in result.stdout  # gate 2 summary line
     assert "SKIP: no git tree" in result.stdout  # gate 3 on a non-git staged root
     assert "stage 'figures': OK" in result.stdout
-    assert "built 1 figure" in result.stdout  # the pilot figure rendered in-process
+    assert "built 2 figure(s)" in result.stdout  # pilot + hero rendered in-process
     assert "tree-check: no .git at root" in result.stdout
     assert "pipeline: all stages OK" in result.stdout
 
@@ -132,7 +133,7 @@ def test_pipeline_happy_path_exits_zero_with_envelope_and_stage(
     assert manifest["build"] == {"head": None}
     assert [g["gate"] for g in manifest["gates"]] == [1, 2, 3, 4, 5, 6, 7, 8]
     assert all(g["result"] == "pass" for g in manifest["gates"])
-    assert len(manifest["artifacts"]) == 3
+    assert len(manifest["artifacts"]) == 4  # 3 series + 1 metrics sidecar
 
     assert (REPO_ROOT / "data" / "RUNLOG.md").read_bytes() == repo_runlog_before
     assert {
@@ -203,7 +204,8 @@ def _stage_figures_root(tmp_path: Path) -> Path:
             staged / name,
             ignore=shutil.ignore_patterns("__pycache__"),
         )
-    shutil.copytree(REPO_ROOT / "artifacts" / "series", staged / "artifacts" / "series")
+    for name in ("series", "metrics"):
+        shutil.copytree(REPO_ROOT / "artifacts" / name, staged / "artifacts" / name)
     return staged
 
 
@@ -290,12 +292,16 @@ def test_figures_stage_stamp_churn_suppresses_head_only_diff(tmp_path: Path) -> 
             f"{suffix} was rewritten on a BUILD-HEAD-only difference"
         )
 
-    # Sanity inverse: a real input change must NOT be suppressed.
-    monthly = staged / "artifacts" / "series" / "canonical_60_40_monthly_v1.csv"
-    lines = monthly.read_text(encoding="utf-8").splitlines()
-    date_part, real_part, nominal_part = lines[-1].split(",")
-    lines[-1] = f"{date_part},{float(real_part) * 2.0:.2f},{nominal_part}"
-    monthly.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    # Sanity inverse: a real input change must NOT be suppressed. The
+    # pilot's alt encodes the ANNUAL series' sub-1.0 readings, so the
+    # mutation lands there (1871.02, not referenced by any episodes row
+    # or by the hero's monthly-only input, which keeps the hero render
+    # stable and the axes' tick labels in their current width class).
+    annual = staged / "artifacts" / "series" / "canonical_60_40_annual_v1.csv"
+    lines = annual.read_text(encoding="utf-8").splitlines()
+    date_part, _, nominal_part = lines[2].split(",")
+    lines[2] = f"{date_part},0.5,{nominal_part}"
+    annual.write_text("\n".join(lines) + "\n", encoding="utf-8")
     rc, out3 = _run_figures_stage(staged)
     assert rc == 0, out3
     assert "re-rendered" in out3

@@ -1,136 +1,124 @@
 ---
-// The latest-at-root study index: the manifest's artifact registry
-// (name / units / index / shape) plus links to the figure pages.
-// Every rendered value is bound from the staged manifest.json — no
-// computation at the render layer (AD-4), no client-side JS (D9).
+// The site root: the Pass 1.2 hero page (spec D4). The skeleton is
+// locked in order: flag <h1> -> dateline -> the single hero exhibit ->
+// footer. Absent by design: navigation, figure index, see-also, hero
+// essay (Pass 2 composes pages). Zero client-side JS (1.7 D9).
+//
+// No hand-typed stamp or episode count: every number binds from
+// committed values at build time — the dateline vintage from the
+// staged manifest, the caption's episode count from the committed
+// episodes artifact, the year span from the record's range (the mock
+// "14 / 155" are build-computed placeholders).
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { getCollection } from "astro:content";
 import Base from "../layouts/Base.astro";
+import FigureWrapper from "../components/FigureWrapper.astro";
 
-// The staged manifest (prebuild step, D5). Resolved from the package
-// directory (npm runs scripts with cwd = web/), not from a URL relative
-// to this module: at prerender time import.meta.url points at a dist
-// chunk, which would bake the wrong path in.
-const manifestPath = path.resolve(process.cwd(), "public", "artifacts", "manifest.json");
+// Resolved from the package directory (npm runs scripts with cwd =
+// web/), not from a URL relative to this module: at prerender time
+// import.meta.url points at a dist chunk, which would bake the wrong
+// path in.
+const webRoot = process.cwd();
+const repoRoot = path.resolve(webRoot, "..");
+const stagedRoot = path.join(webRoot, "public", "artifacts");
+
+// The staged manifest (prebuild step, 1.7 D5) — the dateline's vintage
+// binds from it.
 let manifest;
 try {
-  manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+  manifest = JSON.parse(readFileSync(path.join(stagedRoot, "manifest.json"), "utf8"));
 } catch {
   throw new Error(
-    `index: staged manifest.json not found at ${manifestPath} — ` +
-      "the prebuild staging step (npm run build runs it) must have copied " +
+    `index: staged manifest.json not found at ${path.join(
+      stagedRoot,
+      "manifest.json"
+    )} — the prebuild staging step (npm run build runs it) must have copied ` +
       "manifest.json into web/public/artifacts/"
   );
 }
+// "2026.09" (YYYY.MM last row) -> "2026-09" (the dateline's printed form).
+const lastRow = String(manifest.vintage?.last_row ?? "");
+if (!/^\d{4}\.\d{2}$/.test(lastRow)) {
+  throw new Error(`index: manifest vintage.last_row is not YYYY.MM: ${JSON.stringify(lastRow)}`);
+}
+const vintageLabel = lastRow.replace(".", "-");
 
-const artifacts: Array<{
-  name: string;
-  units: Record<string, string>;
-  index: string;
-  shape_family: string;
-}> = Object.entries(manifest.artifacts ?? {}).map(([name, entry]) => ({
-  name,
-  units: entry.units ?? {},
-  index: String(entry.index ?? ""),
-  shape_family: String(entry.shape_family ?? ""),
-}));
-artifacts.sort((a, b) => a.name.localeCompare(b.name));
+// The staged hero record (the prebuild step stages every committed
+// figure export + record); the wrapper refuses a missing provenance
+// field, so this parse fails the build loudly when the figure is absent.
+const record = JSON.parse(
+  readFileSync(
+    path.join(stagedRoot, "figures", "hero_real_growth_v1.figure.json"),
+    "utf8"
+  )
+);
 
-const study = await getCollection("study");
+// Caption numbers, computed at build from the data artifacts.
+// Episode count = the committed episodes artifact's data rows.
+const episodesPath = path.join(
+  repoRoot,
+  "artifacts",
+  "metrics",
+  "60_40_drawdown_episodes_real_v1.csv"
+);
+let episodeCount;
+try {
+  const lines = readFileSync(episodesPath, "utf8")
+    .split("\n")
+    .filter((line) => line.length > 0);
+  episodeCount = lines.length - 1; // minus the header row
+} catch {
+  throw new Error(
+    `index: episodes artifact not found at ${episodesPath} — ` +
+      "run the pipeline before building the site"
+  );
+}
+// Year span = the record's range, "1871.01" / "2026.06" -> 1871 / 2026.
+const range = record.alt_text?.range;
+const startYear = Number.parseInt(String(range?.start ?? ""), 10);
+const endYear = Number.parseInt(String(range?.end ?? ""), 10);
+if (!Number.isInteger(startYear) || !Number.isInteger(endYear)) {
+  throw new Error(
+    `index: hero record range is not YYYY.MM: ${JSON.stringify(range)}`
+  );
+}
+const spanYears = endYear - startYear;
 
-// Astro 7 does not rewrite internal links with `base`; prefix explicitly.
+const caption = `One real 60/40 dollar from ${startYear} to today, log scale: equal slopes are equal growth rates. Every drawdown of 15% or worse is hatched — ${episodeCount} episodes in ${spanYears} years, counted by the data.`;
+
+// The footer's filed-from line (whitespace around the years kept in the
+// string: Astro trims template whitespace around bare expressions).
+const sourceNote = `Shiller US series, ${startYear}–${endYear}, real returns, monthly rebalance — `;
+
+// Footer links: navigation to the published repository (D9), not
+// printed addresses. D10: the footer links LICENSE + README too.
+const repoHost = "https://github.com/frankyboots/portfolio-study-60-40";
+
+// Astro 7 does not rewrite asset URLs with `base`; prefix explicitly.
 // (BASE_URL is '/' by default; no trailing slash when base is set.)
 const base = import.meta.env.BASE_URL.endsWith("/")
   ? import.meta.env.BASE_URL
   : import.meta.env.BASE_URL + "/";
-const figureHref = base + "figures/rebalance-growth";
+const chartSrc = base + "artifacts/figures/hero_real_growth_v1.svg";
 ---
-<Base title="Portfolio Study — latest">
-  <h1 class="flag">Portfolio Study</h1>
-  <p class="lede">
-    Latest at root: this tree is the newest Edition. Every number on the
-    site binds to a manifest-registered data artifact and a committed
-    figure record; nothing is computed on the page.
+<Base title="The Portfolio Study">
+  <h1 class="flag">The Portfolio Study</h1>
+  <p class="dateline">
+    Vintage {vintageLabel} · Latest build — exhibit addresses become
+    permanent at Edition 1
   </p>
-
-  <hr class="section-rule" />
-  <h2>Artifact registry</h2>
-  <table class="registry">
-    <thead>
-      <tr>
-        <th>artifact</th>
-        <th>index</th>
-        <th>shape</th>
-        <th>units</th>
-      </tr>
-    </thead>
-    <tbody>
-      {artifacts.map((entry) => (
-        <tr>
-          <td class="mono">{entry.name}</td>
-          <td class="mono">{entry.index}</td>
-          <td>{entry.shape_family}</td>
-          <td>
-            {Object.entries(entry.units).map(([label, units]) => (
-              <p class="units-line">
-                <span class="mono units-label">{label}</span> {units}
-              </p>
-            ))}
-          </td>
-        </tr>
-      ))}
-    </tbody>
-  </table>
-
-  <hr class="section-rule" />
-  <h2>Figures</h2>
-  <p>
-    <a href={figureHref}>
-      Real growth, rebalanced — the pilot figure
-    </a>
-  </p>
-
-  <hr class="section-rule" />
-  <h2>Study</h2>
-  {study.map((entry) => (
-    <p>
-      <strong>{entry.data.title}.</strong> {entry.body}
-    </p>
-  ))}
+  <FigureWrapper
+    record={record}
+    exhibitNo="Exhibit I · Hero dispatch"
+    title={`Real growth, ${startYear}–${endYear}`}
+    chartSrc={chartSrc}
+    caption={caption}
+  />
+  <footer class="site-footer">
+    Filed from the portfolio wire. Source: {sourceNote}
+    <a href={repoHost}>repository</a> ·
+    <a href={`${repoHost}/blob/main/README.md`}>README</a> ·
+    <a href={`${repoHost}/blob/main/docs/methodology.md`}>methodology</a> ·
+    <a href={`${repoHost}/blob/main/LICENSE`}>license</a>
+  </footer>
 </Base>
-
-<style>
-  .registry {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 15px;
-  }
-  .registry th {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: var(--faded);
-    text-align: left;
-    border-bottom: 1px solid var(--rule);
-    padding: 4px 8px 4px 0;
-  }
-  .registry td {
-    vertical-align: top;
-    border-bottom: 1px solid var(--rule);
-    padding: 8px 8px 8px 0;
-  }
-  .registry tbody tr:nth-child(even) {
-    background: var(--paper2);
-  }
-  .units-line {
-    margin: 0 0 4px;
-  }
-  .units-label {
-    font-size: 11px;
-    color: var(--faded);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-  }
-</style>

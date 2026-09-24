@@ -1,0 +1,26 @@
+{
+  "episodes": {
+    "algorithm": "peak-to-new-high underwater stretches over the real monthly growth index: the seed month is the initial running peak; an episode opens when the index falls strictly below the running peak (float noise guarded by the epsilon) and closes at the first month the index reaches the peak again; an episode qualifies when its worst trough depth (1 - trough/peak) is >= 0.15 inclusive; a qualifying episode still open at the series tail keeps empty recovery fields",
+    "count": 13,
+    "epsilon": 1e-09,
+    "threshold": 0.15
+  },
+  "index": "YYYY.MM",
+  "name": "60_40_drawdown_episodes_real_v1",
+  "owner": "analysis.metrics.drawdown",
+  "row_count": 13,
+  "serialization": "csv: utf-8, LF newlines, final newline, values via Python repr(); open episodes leave the recovery cells empty; sidecar json: json.dumps(obj, indent=2, sort_keys=True) + trailing newline",
+  "shape_family": "long-table",
+  "units": {
+    "depth": "decimal fraction of the peak lost at the worst trough (1 - trough/peak); 0.15 = a 15% drawdown",
+    "peak_value": "growth index, decimal (real monthly-rebalanced 60/40; base 1.0 at 1871.01)",
+    "recovery_value": "growth index, decimal (first month at or above the peak; same base; empty for an open episode)",
+    "trough_value": "growth index, decimal (worst month of the episode; same base as peak_value)"
+  },
+  "version": 1,
+  "vintage": {
+    "k": 333.8925,
+    "last_row": "2026.09",
+    "sha256": "044196dafe44c3030b2facbdea023975b3f6aa68b4e52f8f9bafc403e19589c1"
+  }
+}

@@ -253,7 +253,12 @@ def _stamp_lines(stamp: str, script: str) -> list[str]:
     return [head, build, *path_lines]
 
 
-def _add_stamp(fig: plt.Figure, stamp: str, script: str) -> tuple[plt.Text, Polygon]:
+def _add_stamp(
+    fig: plt.Figure,
+    stamp: str,
+    script: str,
+    anchor_px: tuple[float, float] = STAMP_ANCHOR_PX,
+) -> tuple[plt.Text, Polygon]:
     """The release stamp: compact block, mono, -2deg, inside STAMP_RECT_PX.
 
     The frame is drawn from corners BAKED into figure-fraction
@@ -261,10 +266,16 @@ def _add_stamp(fig: plt.Figure, stamp: str, script: str) -> tuple[plt.Text, Poly
     in y-up display px at the locked canvas dpi up front, so Agg (PNG)
     and the SVG backend render byte-consistent geometry instead of
     relying on a backend-dependent transform chain.
+
+    ``anchor_px`` is the top-left text anchor in canvas px (y-down from
+    the top); the default is the pilot's locked corner anchor, so the
+    pilot's bytes are unchanged — the hero builder passes its own
+    anchor to make room for its computed episode-count line above the
+    stamped block.
     """
     x0, y0, x1, y1 = style.STAMP_RECT_PX
     width, height = style.CANVAS_PX
-    anchor_x, anchor_y = STAMP_ANCHOR_PX
+    anchor_x, anchor_y = anchor_px
 
     text = fig.text(
         anchor_x / width,

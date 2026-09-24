@@ -1,15 +1,19 @@
 ---
-// The figure wrapper (DESIGN.md "figure-wrapper"): the Astro-owned frame
-// around a matplotlib chart. Element order, nothing else:
-//   exhibit-no + exhibit-title, caption, 1px rule, chart, stamp row,
-//   source line, permalink.
+// The figure wrapper (DESIGN.md "figure-wrapper"), upgraded to the
+// Pass 1.2 wrapper-semantics slice (EXPERIENCE.md): the <figure> owns
+// the stable record-name id (the permalink anchor) and is labelled by
+// its exhibit title; the <figcaption> is the figure's first child and
+// owns the header block (exhibit-no <p>, exhibit title <h2>, caption
+// <p>), then rule, chart, stamp row, source line, permalink.
 //
-// Story 1.7 AD-4: no computation at the render layer. Every value below
-// is bound from the committed figure record (staged into
-// public/artifacts/ by scripts/stage-artifacts.mjs); the alt text is the
-// record's alt_text.alt_text string verbatim. A record missing any
-// provenance field fails the build, naming the figure and the field
-// (EXPERIENCE.md: the build fails, not the page).
+// Refusal behavior and the base-including permalink construction are
+// unchanged from story 1.7 (AD-4: no computation at the render layer):
+// every value binds from the committed figure record (staged into
+// public/artifacts/ by scripts/stage-artifacts.mjs); a record missing
+// any provenance field fails the build, naming the figure and the
+// field (EXPERIENCE.md: the build fails, not the page). An optional
+// `caption` prop lets a page supply its own caption (computed from
+// the data artifacts) in place of the record's trend/alt fallback.
 import "../styles/tokens.css";
 
 interface SeriesEntry {
@@ -32,9 +36,12 @@ interface Props {
   exhibitNo: string;
   title: string;
   chartSrc: string;
+  /** Optional page-supplied caption (e.g. numbers computed from the
+   *  data artifacts); defaults to the record's trend, then its alt. */
+  caption?: string;
 }
 
-const { record, exhibitNo, title, chartSrc } = Astro.props;
+const { record, exhibitNo, title, chartSrc, caption } = Astro.props;
 
 // Provenance-set refusal: name the figure and every missing field.
 function requireString(value: unknown, field: string): string {
@@ -79,15 +86,22 @@ const sourceLine = `${seriesNames} · source: ${sourceArtifacts.join(
   ", "
 )} · method: ${builder}`;
 
+// Caption: a page-supplied caption wins; otherwise the record's
+// trend, then the full alt text (the pilot page's behavior).
+const captionText = caption ?? altObject.trend ?? altText;
+
 // Permalink: this page's canonical path (base-aware, stable across dev
 // and the deployed site), anchored on the figure's stable record name.
 // Edition-scoping of permalinks is a later story.
 const permalink = `${Astro.url.pathname}#${figureName}`;
+const titleId = `${figureName}-title`;
 ---
-<figure class="wrapper">
-  <p class="exhibit-no">{exhibitNo}</p>
-  <h2 class="exhibit-title">{title}</h2>
-  <p class="caption">{altObject.trend ?? altText}</p>
+<figure id={figureName} class="wrapper" aria-labelledby={titleId}>
+  <figcaption>
+    <p class="exhibit-no">{exhibitNo}</p>
+    <h2 class="exhibit-title" id={titleId}>{title}</h2>
+    <p class="caption">{captionText}</p>
+  </figcaption>
   <hr class="rule" />
   <img
     class="chart"
@@ -106,8 +120,12 @@ const permalink = `${Astro.url.pathname}#${figureName}`;
 
 <style>
   .wrapper {
-    margin: 24px 0;
+    margin: 28px 0 0;
     border: 0;
+  }
+  .wrapper figcaption {
+    margin: 0;
+    padding: 0;
   }
   .exhibit-no {
     font-family: var(--font-mono);
@@ -123,7 +141,7 @@ const permalink = `${Astro.url.pathname}#${figureName}`;
     font-weight: 900;
     text-transform: uppercase;
     line-height: 1.1;
-    margin: 8px 0 0;
+    margin: 6px 0 0;
   }
   .caption {
     font-size: 15.5px;
@@ -170,5 +188,9 @@ const permalink = `${Astro.url.pathname}#${figureName}`;
     color: var(--accent-red);
     display: inline-block;
     margin: 8px 0 0;
+  }
+  .permalink:focus-visible {
+    outline: 2px solid var(--accent-red);
+    outline-offset: 2px;
   }
 </style>

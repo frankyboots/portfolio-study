@@ -1,0 +1,388 @@
+{
+  "alt_text": {
+    "alt_text": "Line chart of the real 60/40 growth index (monthly-rebalanced), January 1871 to June 2026. Axes: Year, Growth of $1, log scale. Real 60/40 (monthly-rebalanced) grows from 1.00 at January 1871 to 3,868 at June 2026, plotted on a log scale: equal slopes are equal growth rates. Extremes: the minimum is 0.983 at February 1871; the maximum is 3,868 at June 2026, the terminal value. 13 hatched bands mark the drawdown episodes of 15% or worse in real terms (peak-to-new-high stretches; the count is computed from the episodes artifact and stated in the keep-out band): hatch-only data-bad strokes, transparent fill. 2 series: the real growth line (primary, solid) and the drawdown bands (band, hatched).",
+    "axis": {
+      "scale": "log",
+      "x_label": "Year",
+      "y_label": "Growth of $1, log scale"
+    },
+    "chart_type": "line",
+    "extremes": "Extremes: the minimum is 0.983 at February 1871; the maximum is 3,868 at June 2026, the terminal value.",
+    "pairing_applies": false,
+    "range": {
+      "end": "2026.06",
+      "period": "monthly",
+      "start": "1871.01"
+    },
+    "series": [
+      {
+        "display_name": "Growth of $1 (real)",
+        "id": "real_growth_line",
+        "role": "primary",
+        "units": "growth index, decimal (base 1.0 at 1871.01)"
+      },
+      {
+        "display_name": "Drawdown episodes \u2265 15%",
+        "id": "drawdown_bands",
+        "role": "band",
+        "units": "drawdown depth, decimal fraction of the peak value (1 - trough/peak; 0.15 = a 15% drawdown)"
+      }
+    ],
+    "trend": "Real 60/40 (monthly-rebalanced) grows from 1.00 at January 1871 to 3,868 at June 2026, plotted on a log scale: equal slopes are equal growth rates."
+  },
+  "builder": "analysis/figures/hero_real_growth.py",
+  "canvas_px": {
+    "height": 800,
+    "width": 1200
+  },
+  "measurements": [
+    {
+      "class": "series-line",
+      "display_px": 2.604166666666667,
+      "element": "series_line_real_growth_line",
+      "render_px": 8.333333333333334
+    },
+    {
+      "class": "band-hatch",
+      "display_px": 1.25,
+      "element": "band_hatch",
+      "render_px": 4.0
+    },
+    {
+      "class": "series-label",
+      "display_px": 15.709374999999994,
+      "element": "direct_label_real_growth_line",
+      "render_px": 50.26999999999998
+    },
+    {
+      "class": "series-label",
+      "display_px": 15.709374999999994,
+      "element": "direct_label_drawdown_bands",
+      "render_px": 50.26999999999998
+    },
+    {
+      "class": "series-label",
+      "display_px": 15.709374999999994,
+      "element": "band_year_label_00",
+      "render_px": 50.26999999999998
+    },
+    {
+      "class": "series-label",
+      "display_px": 15.709374999999994,
+      "element": "band_year_label_01",
+      "render_px": 50.26999999999998
+    },
+    {
+      "class": "series-label",
+      "display_px": 15.709374999999994,
+      "element": "band_year_label_02",
+      "render_px": 50.26999999999998
+    },
+    {
+      "class": "series-label",
+      "display_px": 15.709374999999994,
+      "element": "band_year_label_03",
+      "render_px": 50.26999999999998
+    },
+    {
+      "class": "series-label",
+      "display_px": 15.709374999999994,
+      "element": "band_year_label_04",
+      "render_px": 50.26999999999998
+    },
+    {
+      "class": "series-label",
+      "display_px": 15.709374999999994,
+      "element": "band_year_label_05",
+      "render_px": 50.26999999999998
+    },
+    {
+      "class": "series-label",
+      "display_px": 15.709374999999994,
+      "element": "band_year_label_06",
+      "render_px": 50.26999999999998
+    },
+    {
+      "class": "series-label",
+      "display_px": 15.709374999999994,
+      "element": "band_year_label_07",
+      "render_px": 50.26999999999998
+    },
+    {
+      "class": "series-label",
+      "display_px": 15.709374999999994,
+      "element": "band_year_label_08",
+      "render_px": 50.26999999999998
+    },
+    {
+      "class": "series-label",
+      "display_px": 15.709374999999994,
+      "element": "band_year_label_09",
+      "render_px": 50.26999999999998
+    },
+    {
+      "class": "series-label",
+      "display_px": 15.709374999999994,
+      "element": "band_year_label_10",
+      "render_px": 50.26999999999998
+    },
+    {
+      "class": "series-label",
+      "display_px": 15.709374999999994,
+      "element": "band_year_label_11",
+      "render_px": 50.26999999999998
+    },
+    {
+      "class": "series-label",
+      "display_px": 15.709374999999994,
+      "element": "band_year_label_12",
+      "render_px": 50.26999999999998
+    },
+    {
+      "class": "series-line",
+      "display_px": 2.604166666666667,
+      "element": "label_swatch_real_growth_line",
+      "render_px": 8.333333333333334
+    },
+    {
+      "class": "band-hatch",
+      "display_px": 1.25,
+      "element": "label_swatch_drawdown_bands",
+      "render_px": 4.0
+    },
+    {
+      "class": "band-hatch",
+      "display_px": 1.25,
+      "element": "band_year_swatch_00",
+      "render_px": 4.0
+    },
+    {
+      "class": "band-hatch",
+      "display_px": 1.25,
+      "element": "band_year_swatch_01",
+      "render_px": 4.0
+    },
+    {
+      "class": "band-hatch",
+      "display_px": 1.25,
+      "element": "band_year_swatch_02",
+      "render_px": 4.0
+    },
+    {
+      "class": "band-hatch",
+      "display_px": 1.25,
+      "element": "band_year_swatch_03",
+      "render_px": 4.0
+    },
+    {
+      "class": "band-hatch",
+      "display_px": 1.25,
+      "element": "band_year_swatch_04",
+      "render_px": 4.0
+    },
+    {
+      "class": "band-hatch",
+      "display_px": 1.25,
+      "element": "band_year_swatch_05",
+      "render_px": 4.0
+    },
+    {
+      "class": "band-hatch",
+      "display_px": 1.25,
+      "element": "band_year_swatch_06",
+      "render_px": 4.0
+    },
+    {
+      "class": "band-hatch",
+      "display_px": 1.25,
+      "element": "band_year_swatch_07",
+      "render_px": 4.0
+    },
+    {
+      "class": "band-hatch",
+      "display_px": 1.25,
+      "element": "band_year_swatch_08",
+      "render_px": 4.0
+    },
+    {
+      "class": "band-hatch",
+      "display_px": 1.25,
+      "element": "band_year_swatch_09",
+      "render_px": 4.0
+    },
+    {
+      "class": "band-hatch",
+      "display_px": 1.25,
+      "element": "band_year_swatch_10",
+      "render_px": 4.0
+    },
+    {
+      "class": "band-hatch",
+      "display_px": 1.25,
+      "element": "band_year_swatch_11",
+      "render_px": 4.0
+    },
+    {
+      "class": "band-hatch",
+      "display_px": 1.25,
+      "element": "band_year_swatch_12",
+      "render_px": 4.0
+    },
+    {
+      "class": "caption-class",
+      "display_px": 18.565624999999997,
+      "element": "tick_labels",
+      "render_px": 59.41
+    },
+    {
+      "class": "caption-class",
+      "display_px": 18.565625000000008,
+      "element": "axis_titles",
+      "render_px": 59.410000000000025
+    },
+    {
+      "class": "mono-stamp",
+      "display_px": 14.569496257572414,
+      "element": "stamp_text",
+      "render_px": 46.622388024231725
+    },
+    {
+      "class": "mono-stamp",
+      "display_px": 11.458333333333321,
+      "element": "count_line",
+      "render_px": 36.66666666666663
+    },
+    {
+      "class": "hairline",
+      "display_px": 0.5208333333333334,
+      "element": "gridlines",
+      "render_px": 1.6666666666666667
+    },
+    {
+      "class": "hairline",
+      "display_px": 0.78125,
+      "element": "spines",
+      "render_px": 2.5
+    },
+    {
+      "class": "hairline",
+      "display_px": 0.625,
+      "element": "stamp_border",
+      "render_px": 2.0
+    }
+  ],
+  "name": "hero_real_growth_v1",
+  "series": [
+    {
+      "dash": "solid",
+      "display_name": "Growth of $1 (real)",
+      "fg": "ink",
+      "id": "real_growth_line",
+      "on": "paper",
+      "role": "primary",
+      "units": "growth index, decimal (base 1.0 at 1871.01)"
+    },
+    {
+      "display_name": "Drawdown episodes \u2265 15%",
+      "fg": "data-bad",
+      "id": "drawdown_bands",
+      "on": "paper",
+      "role": "band",
+      "units": "drawdown depth, decimal fraction of the peak value (1 - trough/peak; 0.15 = a 15% drawdown)"
+    }
+  ],
+  "source_artifacts": [
+    "canonical_60_40_monthly_v1",
+    "60_40_drawdown_episodes_real_v1"
+  ],
+  "stamp": "\u25ae VINTAGE 2026-09 \u00b7 BUILD-HEAD b908a78 \u00b7 analysis/figures/hero_real_growth.py",
+  "style_declarations": [
+    {
+      "element": "series_line",
+      "fg": "ink",
+      "on": "paper",
+      "role": "data-series"
+    },
+    {
+      "element": "band_hatch",
+      "fg": "data-bad",
+      "min_px": 4,
+      "on": "paper",
+      "role": "non-text"
+    },
+    {
+      "element": "direct_labels",
+      "fg": "ink",
+      "on": "paper",
+      "role": "text-normal"
+    },
+    {
+      "element": "band_year_labels",
+      "fg": "ink",
+      "on": "paper",
+      "role": "text-normal"
+    },
+    {
+      "element": "label_swatch_real_growth_line",
+      "fg": "ink",
+      "on": "paper",
+      "role": "non-text"
+    },
+    {
+      "element": "label_swatch_drawdown_bands",
+      "fg": "data-bad",
+      "on": "paper",
+      "role": "non-text"
+    },
+    {
+      "element": "band_year_swatches",
+      "fg": "data-bad",
+      "on": "paper",
+      "role": "non-text"
+    },
+    {
+      "element": "tick_labels",
+      "fg": "ink",
+      "on": "paper",
+      "role": "text-normal"
+    },
+    {
+      "element": "axis_titles",
+      "fg": "ink",
+      "on": "paper",
+      "role": "text-normal"
+    },
+    {
+      "element": "stamp_text",
+      "fg": "accent-red",
+      "on": "paper",
+      "role": "text-normal"
+    },
+    {
+      "element": "stamp_border",
+      "fg": "accent-red",
+      "on": "paper",
+      "role": "non-text"
+    },
+    {
+      "element": "count_line",
+      "fg": "accent-red",
+      "on": "paper",
+      "role": "text-normal"
+    },
+    {
+      "element": "gridlines",
+      "fg": "rule",
+      "min_px": 1,
+      "on": "paper",
+      "role": "non-text"
+    },
+    {
+      "element": "spines",
+      "fg": "rule",
+      "min_px": 1,
+      "on": "paper",
+      "role": "non-text"
+    }
+  ]
+}

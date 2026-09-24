@@ -14,6 +14,7 @@ from pathlib import Path
 #: figure ID -> builder module (the module exposes build_figure).
 FIGURE_BUILDERS: dict[str, str] = {
     "rebalance_growth_v1": "analysis.figures.rebalance_growth",
+    "hero_real_growth_v1": "analysis.figures.hero_real_growth",
 }
 
 BUILDERS_BY_ID = FIGURE_BUILDERS

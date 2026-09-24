@@ -98,7 +98,7 @@ def test_manifest_schema_and_registry(tmp_path: Path) -> None:
     }
 
     artifacts = manifest["artifacts"]
-    assert len(artifacts) == 3  # the three pinned series files (AD-9 registry)
+    assert len(artifacts) == 4  # three series + the metrics episodes sidecar
     for name, entry in artifacts.items():
         assert set(entry) == ENTRY_KEYS
         assert entry["name"] == name

@@ -2,12 +2,12 @@
   { "route": "canonical_60_40_monthly_v1" },
   { "route": "canonical_60_40_annual_v1" },
   { "route": "canonical_60_40_rebalance_diff_v1" },
+  { "route": "60_40_drawdown_episodes_real_v1" },
   {
     "route": "/",
     "depends_on": [
       "canonical_60_40_monthly_v1",
-      "canonical_60_40_annual_v1",
-      "canonical_60_40_rebalance_diff_v1"
+      "60_40_drawdown_episodes_real_v1"
     ]
   },
   {

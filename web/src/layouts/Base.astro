@@ -50,6 +50,30 @@ const { title } = Astro.props;
     color: var(--ink2);
     margin: 0 0 24px;
   }
+  /* Hero page skeleton (Pass 1.2): the dateline is 11px mono faded on
+     paper (the data-microcopy floor; pairing faded/paper, 4.78:1). */
+  .dateline {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--faded);
+    margin: 8px 0 0;
+  }
+  /* Hero page skeleton footer: a faded filed-from line with accent-red
+     underlined links (never faded-only link text). */
+  .site-footer {
+    margin-top: 34px;
+    border-top: 1px solid var(--rule);
+    padding-top: 12px;
+    font-size: 13.5px;
+    line-height: 1.6;
+    color: var(--faded);
+  }
+  .site-footer a {
+    color: var(--accent-red);
+    text-decoration: underline;
+  }
   h2 {
     font-size: 22px;
     font-weight: 900;

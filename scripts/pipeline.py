@@ -132,6 +132,21 @@ def run_comparator_stage() -> int:
     return build_comparator(REPO_ROOT)
 
 
+def run_metrics_stage() -> int:
+    """Stage: compute the >=15% drawdown episodes over the canonical real index.
+
+    Imports the metrics builder in-process; same ``sys.path`` bootstrap
+    as the ``series``/``comparator`` stages so ``analysis.metrics``
+    resolves when the runner is launched as ``python scripts/pipeline.py``.
+    """
+    root_str = str(REPO_ROOT)
+    if root_str not in sys.path:
+        sys.path.insert(0, root_str)
+    from analysis.metrics.drawdown import build_episodes
+
+    return build_episodes(REPO_ROOT)
+
+
 def run_figures_stage() -> int:
     """Stage: render the registered figures (after ``comparator``, pre-gates).
 
@@ -397,6 +412,7 @@ STAGES: list[tuple[str, Callable[[], int]]] = [
     ("import-wall", run_import_wall_check),
     ("series", run_series_stage),
     ("comparator", run_comparator_stage),
+    ("metrics", run_metrics_stage),
     ("figures", run_figures_stage),
     ("vintage-integrity", run_vintage_integrity_stage),
     ("suite", run_suite_stage),

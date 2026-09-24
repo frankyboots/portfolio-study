@@ -20,6 +20,7 @@ locked sets; builders pick from them, they do not invent.
 from __future__ import annotations
 
 import json
+import math
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
@@ -86,6 +87,15 @@ HATCH_LIBRARY: dict[str, str] = {
 HATCH_MIN_PITCH_PX: float = 8.0  # at the 1200px render
 HATCH_LINWIDTH_PX: float = 2.0  # >= 1.5px hatch linewidth, locked at 2
 
+#: The >=15% drawdown bands of the hero exhibit: a band-specific hatch
+#: floor, separate from the locked general hatch constants above (the
+#: general 2px hatch lock stays untouched). Linewidth and pitch are
+#: pinned in render px at the 1200px export; :func:`band_hatch_segments`
+#: is the explicit geometry matplotlib's hatch strings cannot carry.
+BAND_HATCH_LINWIDTH_PX: float = 4.0  # >= 4px render px (1.25px at 375)
+BAND_HATCH_PITCH_PX: float = 10.0  # >= 8px pitch at the 1200px render
+BAND_HATCH_ANGLE_DEG: float = 45.0  # "slash": left-to-right, 45 degrees
+
 #: The one hash salt for every SVG export (mirrors config/matplotlibrc
 #: and scripts/pipeline.py SVG_HASHSALT).
 SVG_HASHSALT: str = "portfolio-study-v1"
@@ -145,6 +155,53 @@ def hatch(name: str) -> str:
     if name not in HATCH_LIBRARY:
         raise KeyError(f"hatch not in the locked library: {name!r}")
     return HATCH_LIBRARY[name]
+
+
+def band_hatch_segments(
+    rect: tuple[float, float, float, float],
+) -> list[tuple[tuple[float, float], tuple[float, float]]]:
+    """The locked slash-hatch geometry for the >=15% drawdown bands.
+
+    ``rect`` is a display-pixel box ``(x0, y0, x1, y1)`` with y up
+    (the figure canvas origin at bottom-left). Returns the disjoint
+    line segments — each ``( (xa, ya), (xb, by) )`` in the same
+    display-px space — of the band's own stroke set (DESIGN.md Pass
+    1.2 annex): the slash pattern (``BAND_HATCH_ANGLE_DEG`` = 45),
+    perpendicular pitch ``BAND_HATCH_PITCH_PX``, so a builder can draw
+    it as ordinary lines at ``BAND_HATCH_LINWIDTH_PX``. The recorded
+    measurement is that stroke width, the stroke actually rastered.
+
+    matplotlib's hatch strings cannot carry a 4px stroke or a pinned
+    pitch (3.11 rejects numeric hatch specs outright), so the geometry
+    is explicit here, pure and deterministic: the lines of the family
+    offset ``t = -x*sin(theta) + y*cos(theta)`` step by the
+    perpendicular pitch across the rect's ``t`` span, each clipped to
+    the box.
+    """
+    x0, y0, x1, y1 = rect
+    theta = math.radians(BAND_HATCH_ANGLE_DEG)
+    ux, uy = math.cos(theta), math.sin(theta)  # line direction
+    nx, ny = -math.sin(theta), math.cos(theta)  # perpendicular offset
+    t_min = nx * x1 + ny * y0
+    t_max = nx * x0 + ny * y1
+    segments: list[tuple[tuple[float, float], tuple[float, float]]] = []
+    n = math.floor((t_max - t_min) / BAND_HATCH_PITCH_PX + 1e-12) + 1
+    for k in range(n):
+        t = t_min + k * BAND_HATCH_PITCH_PX
+        # s is the coordinate along u; clip to the box on both axes.
+        s_lo = ((x0 - nx * t) / ux, (y0 - ny * t) / uy)
+        s_hi = ((x1 - nx * t) / ux, (y1 - ny * t) / uy)
+        s_min = max(s_lo)
+        s_max = min(s_hi)
+        if s_max - s_min < 1e-9:
+            continue
+        segments.append(
+            (
+                (nx * t + ux * s_min, ny * t + uy * s_min),
+                (nx * t + ux * s_max, ny * t + uy * s_max),
+            )
+        )
+    return segments
 
 
 def ensure_vendored_fonts() -> None:
