@@ -3,8 +3,9 @@
 Covers the ``check_editions.py`` matrix on staged git repos:
 EDITION_ABSENT / empty (zero-edition state), EDITION_GRAMMAR,
 EDITION_OVERWRITE (modify and delete against the base ref, via the
-``BASE_REF`` env), EDITION_NEW (a new grammar-conforming edition dir
-passes), and NO_GIT / NO_BASE (structural pass, mirroring gate 5's
+``BASE_REF`` env), renames (into an existing edition fail; entirely
+outside editions pass), EDITION_NEW (a new grammar-conforming edition
+dir passes), and NO_GIT / NO_BASE (structural pass, mirroring gate 5's
 cold-start). Also the ``mint_edition.py`` refusals (usage, invalid id,
 no built dist, MINT_EXISTS) and the happy-path mint with the
 edition-recursion exclusion. Reuses the stage_minimal-style harness
@@ -263,6 +264,41 @@ def test_new_edition_dir_passes(tmp_path: Path) -> None:
     base_sha = commit_all(root, "seed")
     write_edition_file(root, "2027", "index.html", "new edition")
     commit_all(root, "mint 2027")
+    result = run_check(root, base_ref=base_sha)
+    assert result.returncode == 0, result.stderr
+    assert "no path under an existing edition changed" in result.stdout
+
+
+def test_rename_into_existing_edition_fails(tmp_path: Path) -> None:
+    # A rename from outside web/editions/ into an edition that exists at
+    # the base ref appends to a frozen tree; the destination is judged,
+    # not just the diff's source path.
+    root = stage_repo(tmp_path)
+    write_edition_file(root, "2026", "index.html", "x")
+    (root / "web" / "doc.html").write_text("movable content", encoding="utf-8")
+    base_sha = commit_all(root, "seed")
+    git_run(
+        root,
+        "mv",
+        "web/doc.html",
+        "web/editions/2026/renamed.html",
+    )
+    commit_all(root, "rename a doc into an edition")
+    result = run_check(root, base_ref=base_sha)
+    assert result.returncode == 1
+    assert "web/editions/2026/renamed.html" in result.stderr
+    assert "FAIL: editions" in result.stderr
+
+
+def test_rename_outside_editions_passes(tmp_path: Path) -> None:
+    # A rename that never touches web/editions/ is out of the guard's
+    # jurisdiction even when an existing edition sits at the base ref.
+    root = stage_repo(tmp_path)
+    write_edition_file(root, "2026", "index.html", "x")
+    (root / "web" / "doc.html").write_text("movable content", encoding="utf-8")
+    base_sha = commit_all(root, "seed")
+    git_run(root, "mv", "web/doc.html", "web/other.html")
+    commit_all(root, "rename outside editions")
     result = run_check(root, base_ref=base_sha)
     assert result.returncode == 0, result.stderr
     assert "no path under an existing edition changed" in result.stdout

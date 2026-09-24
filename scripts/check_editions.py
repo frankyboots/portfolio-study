@@ -123,19 +123,19 @@ def _diff_guard_violations(
         if not paths:
             continue
         letter = status[0]
-        # M/T/D name the changed path; R/C carry (source, destination) and
-        # the source is the pre-existing side. Judge the pre-existing path.
-        existing = paths[0]
-        edition = _edition_of(existing)
-        if edition is None:
-            continue
-        if letter == "A" and len(paths) == 1 and edition not in base_editions:
-            # A fresh path under a NEW edition directory: creation is allowed.
-            continue
-        if edition in base_editions:
-            verb = "added" if letter == "A" else "modified or deleted"
+        # M/T/D/A name the changed path; R/C carry (source, destination) --
+        # judge BOTH sides: a rename out of a frozen tree deletes a path,
+        # a rename into one appends to it. Only a path under an edition
+        # that exists at the base ref is frozen; anything else (a fresh
+        # edition directory, or outside web/editions/) is out of scope.
+        for side, path in enumerate(paths):
+            edition = _edition_of(path)
+            if edition is None or edition not in base_editions:
+                continue
+            is_fresh_add = letter == "A" or (letter in ("R", "C") and side == 1)
+            verb = "added" if is_fresh_add else "modified or deleted"
             violations.append(
-                f"web/editions/{edition}: {existing} was {verb} against base ref "
+                f"web/editions/{edition}: {path} was {verb} against base ref "
                 f"{base_ref} (editions are frozen; corrections ship as new editions)"
             )
     return violations, None
