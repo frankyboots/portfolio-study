@@ -240,7 +240,7 @@ def test_contract_role_claim_below_threshold_fails(gate4_case: Path) -> None:
 def test_render_px_below_declared_min_px_fails(gate4_case: Path) -> None:
     def mutate(doc):
         for m in doc["measurements"]:
-            if m["element"] == "leader_monthly_rebalanced_real":
+            if m["element"] == "gridlines":
                 m["render_px"] = 0.5  # declared min_px for the element is 1
 
     _rewrite_record(gate4_case, mutate)

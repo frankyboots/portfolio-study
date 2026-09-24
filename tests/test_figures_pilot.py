@@ -171,7 +171,9 @@ def test_record_top_level_schema(built_root: Path) -> None:
         )
         assert swatch["class"] == "series-line"
         decl = next(
-            d for d in rec["style_declarations"] if d["element"] == f"label_swatch_{sid}"
+            d
+            for d in rec["style_declarations"]
+            if d["element"] == f"label_swatch_{sid}"
         )
         assert decl["role"] == "non-text"
 
