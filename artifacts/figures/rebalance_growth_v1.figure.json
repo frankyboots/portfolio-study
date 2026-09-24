@@ -50,27 +50,27 @@
     },
     {
       "class": "series-label",
-      "display_px": 18.565625000000026,
+      "display_px": 15.709374999999994,
       "element": "direct_label_monthly_rebalanced_real",
-      "render_px": 59.41000000000008
+      "render_px": 50.26999999999998
     },
     {
       "class": "series-label",
-      "display_px": 18.565625000000026,
+      "display_px": 15.709374999999994,
       "element": "direct_label_annual_rebalanced_real",
-      "render_px": 59.41000000000008
+      "render_px": 50.26999999999998
     },
     {
-      "class": "hairline",
-      "display_px": 1.3020833333333335,
-      "element": "leader_monthly_rebalanced_real",
-      "render_px": 4.166666666666667
+      "class": "series-line",
+      "display_px": 2.604166666666667,
+      "element": "label_swatch_monthly_rebalanced_real",
+      "render_px": 8.333333333333334
     },
     {
-      "class": "hairline",
-      "display_px": 1.3020833333333335,
-      "element": "leader_annual_rebalanced_real",
-      "render_px": 4.166666666666667
+      "class": "series-line",
+      "display_px": 2.0833333333333335,
+      "element": "label_swatch_annual_rebalanced_real",
+      "render_px": 6.666666666666667
     },
     {
       "class": "caption-class",
@@ -86,9 +86,9 @@
     },
     {
       "class": "mono-stamp",
-      "display_px": 16.02644588332965,
+      "display_px": 14.569496257572414,
       "element": "stamp_text",
-      "render_px": 51.284626826654886
+      "render_px": 46.622388024231725
     },
     {
       "class": "hairline",
@@ -134,7 +134,7 @@
     "canonical_60_40_monthly_v1",
     "canonical_60_40_annual_v1"
   ],
-  "stamp": "\u25ae VINTAGE 2026-09 \u00b7 BUILD-HEAD dd4375d \u00b7 analysis/figures/rebalance_growth.py",
+  "stamp": "\u25ae VINTAGE 2026-09 \u00b7 BUILD-HEAD 661fa3d \u00b7 analysis/figures/rebalance_growth.py",
   "style_declarations": [
     {
       "element": "series_line",
@@ -161,16 +161,14 @@
       "role": "text-normal"
     },
     {
-      "element": "leader_monthly_rebalanced_real",
+      "element": "label_swatch_monthly_rebalanced_real",
       "fg": "data-good",
-      "min_px": 1,
       "on": "paper",
       "role": "non-text"
     },
     {
-      "element": "leader_annual_rebalanced_real",
+      "element": "label_swatch_annual_rebalanced_real",
       "fg": "data-neutral",
-      "min_px": 1,
       "on": "paper",
       "role": "non-text"
     },

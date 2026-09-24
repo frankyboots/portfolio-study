@@ -16,11 +16,12 @@ carried by the locked dash ladder (solid primary / dashed baseline),
 never by hue alone.
 
 Layout (1200x800 canvas): top-left keep-out band holds the compact
-four-line release stamp; the two direct labels sit in the top-right
-band, each joined to its line end by a straight vertical leader rule
-(DESIGN.md: annotations are straight rules and direct labels). The
-axes occupy the lower region; series labels, leader rules and the
-stamp are placed so their measured extents never overlap.
+four-line release stamp; the two swatch-keyed direct labels sit in
+the top-right band, each a label with a short line-style swatch in
+its series' own stroke beside it (DESIGN.md: labels are mandatory,
+the swatch carries the series identity, no leader rules). The axes
+occupy the lower region; labels, swatches and the stamp are placed
+so their measured extents never overlap.
 """
 
 from __future__ import annotations
@@ -31,7 +32,6 @@ import sys
 from pathlib import Path
 
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 from matplotlib.patches import Polygon
 
@@ -83,22 +83,16 @@ AX_FRACTIONS = {"left": 0.145, "bottom": 0.215, "right": 0.985, "top": 0.6375}
 X_MIN, X_MAX = 1870.0, 2030.0
 Y_MIN, Y_MAX = 1.0, 10.0**4.08
 
-#: Direct-label placements: canvas-px anchor (ha=right, va=center),
-#: and leader-rule x in canvas px (vertical straight rule from the
-#: label's bottom edge down to the series line).
+#: Swatch-keyed direct labels: canvas-px anchor (ha=right, va=center)
+#: for the label text; the short line-style swatch sits in the
+#: series' own stroke to the left of the measured label extent
+#: (the swatch carries the series->label association; no leaders).
 LABEL_ANCHORS: dict[str, tuple[float, float]] = {
     "annual_rebalanced_real": (1160.0 / 1200.0, 1.0 - 95.0 / 800.0),
     "monthly_rebalanced_real": (1105.0 / 1200.0, 1.0 - 170.0 / 800.0),
 }
-LABEL_PX: dict[str, tuple[float, float]] = {
-    "annual_rebalanced_real": (1160.0, 95.0),
-    "monthly_rebalanced_real": (1105.0, 170.0),
-}
-LEADER_X_PX: dict[str, float] = {
-    "annual_rebalanced_real": 1130.0,
-    "monthly_rebalanced_real": 530.0,
-}
-LEADER_LW_PT = 1.25
+SWATCH_LEN_PX = 40.0
+SWATCH_GAP_PX = 12.0
 
 STAMP_ANCHOR_PX = (48.0, 44.0)
 
@@ -175,12 +169,6 @@ def _load_series(root: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
     if not monthly["date"].equals(annual["date"]):
         raise ValueError("the two source artifacts do not share the same date index")
     return annual, monthly
-
-
-def _value_at(xs: pd.Series, values: pd.Series, x: float) -> float:
-    """Log-linear interpolation of a growth index at a fractional year."""
-    logv = np.log10(values.to_numpy(dtype=float))
-    return float(10.0 ** np.interp(x, xs.to_numpy(dtype=float), logv))
 
 
 def _alt_text(annual: pd.DataFrame, monthly: pd.DataFrame) -> dict:
@@ -282,7 +270,7 @@ def _add_stamp(fig: plt.Figure, stamp: str, script: str) -> tuple[plt.Text, Poly
         1.0 - anchor_y / height,
         "\n".join(_stamp_lines(stamp, script)),
         family=style.MONO_FAMILY_LIST,
-        size=11.0,
+        size=10.0,
         color=style.token("accent-red"),
         ha="left",
         va="top",
@@ -433,8 +421,10 @@ def build_figure(root: Path) -> int:
     for spine_name in ("top", "right"):
         ax.spines[spine_name].set_visible(False)
 
-    # Direct labels in the top-right band (fig fractions), each joined
-    # to its line by a straight vertical leader rule.
+    # Swatch-keyed direct labels in the top-right band (fig
+    # fractions): the label text carries the series display name; the
+    # short line-style swatch in the series' own stroke sits beside it
+    # (no leader rules — the swatch carries the association).
     labels: dict[str, plt.Text] = {}
     for spec in SERIES:
         fx, fy = LABEL_ANCHORS[spec["id"]]
@@ -443,58 +433,39 @@ def build_figure(root: Path) -> int:
             fy,
             spec["display_name"],
             family=style.SERIF_FAMILY,
-            size=13.0,
+            size=11.0,
             color=style.token(spec["fg"]),
             ha="right",
             va="center",
         )
     h_px = style.CANVAS_PX[1]
     w_px = style.CANVAS_PX[0]
-    axis_bottom_display = AX_FRACTIONS["bottom"] * h_px
     axis_top_display = AX_FRACTIONS["top"] * h_px
-    axis_height_display = axis_top_display - axis_bottom_display
-    axes_left_px = AX_FRACTIONS["left"] * w_px
-    axes_width_px = (AX_FRACTIONS["right"] - AX_FRACTIONS["left"]) * w_px
-    log_range = math.log10(Y_MAX) - math.log10(Y_MIN)
+    renderer = fig.canvas.get_renderer()  # type: ignore[attr-defined]
 
-    def px_to_data_x(px: float) -> float:
-        return X_MIN + (px - axes_left_px) / axes_width_px * (X_MAX - X_MIN)
-
-    def value_to_display_y(value: float) -> float:
-        return (
-            axis_bottom_display
-            + (math.log10(value) - math.log10(Y_MIN)) / log_range * axis_height_display
-        )
-
-    leaders: dict[str, plt.Line2D] = {}
-    leader_geo: dict[str, dict] = {}
+    # The swatch: a short sample of the series line's own stroke, left
+    # of the measured label extent, at the label's vertical center.
+    swatches: dict[str, plt.Line2D] = {}
     for spec in SERIES:
-        leader_x_px = LEADER_X_PX[spec["id"]]
-        data_x = px_to_data_x(leader_x_px)
-        xs, vals = data[spec["id"]]
-        line_val = _value_at(xs, vals, data_x)
-        label_center_px = LABEL_PX[spec["id"]][1]
-        bottom_px = label_center_px + style.measure_text_px(labels[spec["id"]]) / 2.0
-        leader_top_display = h_px - bottom_px
-        # The rule's top end in data coords (above Y_MAX, drawn
-        # unclipped): display y -> data y.
-        data_y_top = Y_MIN * (Y_MAX / Y_MIN) ** (
-            (leader_top_display - axis_bottom_display) / axis_height_display
-        )
-        assert data_y_top > Y_MAX, "leader must start above the axes top"
-        leaders[spec["id"]] = ax.plot(
-            [data_x, data_x],
-            [line_val, data_y_top],
+        sid = spec["id"]
+        ext = labels[sid].get_window_extent(renderer)
+        swatch_right_px = float(ext.x0) - SWATCH_GAP_PX
+        swatch_left_px = swatch_right_px - SWATCH_LEN_PX
+        if swatch_left_px < style.STAMP_RECT_PX[2] + 5:
+            raise AssertionError(f"swatch {sid} intrudes on the stamp band")
+        dash, lw_pt = style.dash_style(spec["dash"])
+        y_center_display = (float(ext.y0) + float(ext.y1)) / 2.0
+        swatches[sid] = plt.Line2D(
+            [swatch_left_px / w_px, swatch_right_px / w_px],
+            [y_center_display / h_px, y_center_display / h_px],
+            transform=fig.transFigure,
             color=style.token(spec["fg"]),
-            linewidth=LEADER_LW_PT,
+            linestyle=dash,
+            linewidth=lw_pt,
             solid_capstyle="butt",
-            clip_on=False,
-        )[0]
-        leader_geo[spec["id"]] = {
-            "leader_x_px": leader_x_px,
-            "line_val_display": value_to_display_y(line_val),
-            "leader_top_display": leader_top_display,
-        }
+            dash_capstyle="butt",
+        )
+        fig.add_artist(swatches[sid])
 
     stamp = _records.stamp_string(
         _records.resolve_vintage(root),
@@ -511,8 +482,7 @@ def build_figure(root: Path) -> int:
 
     # Layout guards, all from measured extents: labels clear the stamp
     # keep-out band and stay in the top band above the axes; labels
-    # never overlap; leader rules never cross the other label; the
-    # axis titles fit inside the canvas.
+    # never overlap; the axis titles fit inside the canvas.
     for i, spec in enumerate(SERIES):
         sid = spec["id"]
         ext = labels[sid].get_window_extent(renderer)
@@ -524,13 +494,6 @@ def build_figure(root: Path) -> int:
         other_ext = labels[other].get_window_extent(renderer)
         if _rects_overlap(ext, other_ext):
             raise AssertionError(f"labels {sid} and {other} overlap")
-        geo = leader_geo[sid]
-        if (
-            float(other_ext.x0) - 2.0 < geo["leader_x_px"] < float(other_ext.x1) + 2.0
-            and float(other_ext.y0) - 2.0 < geo["leader_top_display"]
-            and float(other_ext.y1) + 2.0 > geo["line_val_display"]
-        ):
-            raise AssertionError(f"leader {sid} would cross label {other}")
     ylabel_ext = ax.yaxis.get_label().get_window_extent(renderer)
     xlabel_ext = ax.xaxis.get_label().get_window_extent(renderer)
     for name, ext in (("y title", ylabel_ext), ("x title", xlabel_ext)):
@@ -592,10 +555,10 @@ def build_figure(root: Path) -> int:
         ]
         + [
             {
-                "class": "hairline",
-                "element": f"leader_{spec['id']}",
-                "render_px": style.canvas_px_of_pt(LEADER_LW_PT),
-                "display_px": style.canvas_px_of_pt(LEADER_LW_PT)
+                "class": "series-line",
+                "element": f"label_swatch_{spec['id']}",
+                "render_px": style.measure_line_px(swatches[spec["id"]]),
+                "display_px": style.measure_line_px(swatches[spec["id"]])
                 * style.CANVAS_TO_DISPLAY,
             }
             for spec in SERIES
@@ -673,9 +636,8 @@ def build_figure(root: Path) -> int:
         ]
         + [
             {
-                "element": f"leader_{spec['id']}",
+                "element": f"label_swatch_{spec['id']}",
                 "fg": spec["fg"],
-                "min_px": 1,
                 "on": spec["on"],
                 "role": "non-text",
             }

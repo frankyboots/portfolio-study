@@ -157,6 +157,23 @@ def test_record_top_level_schema(built_root: Path) -> None:
     # Every gate-4-checked class is measured, not just some.
     classes = {m["class"] for m in rec["measurements"]}
     assert MEASUREMENT_CLASSES <= classes
+    # Renegotiated CAP-3 (2026-09-23): the leader rules are out, the
+    # swatch-keyed labels are in — each swatch is recorded at the
+    # series-line level with a non-text declaration (a schema pin, not
+    # a pixel-value pin).
+    measurement_elements = {m["element"] for m in rec["measurements"]}
+    declaration_elements = {d["element"] for d in rec["style_declarations"]}
+    for sid in ("monthly_rebalanced_real", "annual_rebalanced_real"):
+        assert f"leader_{sid}" not in measurement_elements
+        assert f"leader_{sid}" not in declaration_elements
+        swatch = next(
+            m for m in rec["measurements"] if m["element"] == f"label_swatch_{sid}"
+        )
+        assert swatch["class"] == "series-line"
+        decl = next(
+            d for d in rec["style_declarations"] if d["element"] == f"label_swatch_{sid}"
+        )
+        assert decl["role"] == "non-text"
 
 
 def test_alt_text_is_the_v1_key_set(built_root: Path) -> None:
