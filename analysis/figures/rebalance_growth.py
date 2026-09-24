@@ -20,8 +20,9 @@ four-line release stamp; the two swatch-keyed direct labels sit in
 the top-right band, each a label with a short line-style swatch in
 its series' own stroke beside it (DESIGN.md: labels are mandatory,
 the swatch carries the series identity, no leader rules). The axes
-occupy the lower region; labels, swatches and the stamp are placed
-so their measured extents never overlap.
+occupy the lower region; guards on the measured extents check that no
+label overlaps the other label, that labels and swatches clear the
+stamp keep-out band, and that no swatch crosses the other label.
 """
 
 from __future__ import annotations
@@ -83,8 +84,8 @@ AX_FRACTIONS = {"left": 0.145, "bottom": 0.215, "right": 0.985, "top": 0.6375}
 X_MIN, X_MAX = 1870.0, 2030.0
 Y_MIN, Y_MAX = 1.0, 10.0**4.08
 
-#: Swatch-keyed direct labels: canvas-px anchor (ha=right, va=center)
-#: for the label text; the short line-style swatch sits in the
+#: Swatch-keyed direct labels: figure-fraction anchor (ha=right,
+#: va=center) for the label text; the short line-style swatch sits in the
 #: series' own stroke to the left of the measured label extent
 #: (the swatch carries the series->label association; no leaders).
 LABEL_ANCHORS: dict[str, tuple[float, float]] = {
@@ -482,7 +483,8 @@ def build_figure(root: Path) -> int:
 
     # Layout guards, all from measured extents: labels clear the stamp
     # keep-out band and stay in the top band above the axes; labels
-    # never overlap; the axis titles fit inside the canvas.
+    # never overlap; no swatch crosses the other label; the axis
+    # titles fit inside the canvas.
     for i, spec in enumerate(SERIES):
         sid = spec["id"]
         ext = labels[sid].get_window_extent(renderer)
@@ -494,6 +496,9 @@ def build_figure(root: Path) -> int:
         other_ext = labels[other].get_window_extent(renderer)
         if _rects_overlap(ext, other_ext):
             raise AssertionError(f"labels {sid} and {other} overlap")
+        swatch_ext = swatches[sid].get_window_extent(renderer)
+        if _rects_overlap(swatch_ext, other_ext):
+            raise AssertionError(f"swatch {sid} crosses label {other}")
     ylabel_ext = ax.yaxis.get_label().get_window_extent(renderer)
     xlabel_ext = ax.xaxis.get_label().get_window_extent(renderer)
     for name, ext in (("y title", ylabel_ext), ("x title", xlabel_ext)):
