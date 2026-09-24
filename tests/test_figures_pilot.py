@@ -166,15 +166,40 @@ def test_record_top_level_schema(built_root: Path) -> None:
         assert f"leader_{sid}" not in measurement_elements
         assert f"leader_{sid}" not in declaration_elements
         swatch = next(
-            m for m in rec["measurements"] if m["element"] == f"label_swatch_{sid}"
+            (m for m in rec["measurements"] if m["element"] == f"label_swatch_{sid}"),
+            None,
         )
+        assert swatch is not None, f"missing measurement for label_swatch_{sid}"
         assert swatch["class"] == "series-line"
         decl = next(
-            d
-            for d in rec["style_declarations"]
-            if d["element"] == f"label_swatch_{sid}"
+            (
+                d
+                for d in rec["style_declarations"]
+                if d["element"] == f"label_swatch_{sid}"
+            ),
+            None,
         )
+        assert decl is not None, f"missing style declaration for label_swatch_{sid}"
         assert decl["role"] == "non-text"
+
+
+def test_swatch_intruding_on_the_stamp_band_fails(
+    built_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The swatch->stamp-band guard trips while the label still clears.
+
+    The annual label anchor is pulled ~135 px left of its locked
+    1160 px: the measured label extent still clears the keep-out
+    band, but the swatch (52 px left of the label extent) dips under
+    ``STAMP_RECT_PX[2] + 5``.
+    """
+    anchors = dict(rebalance_growth.LABEL_ANCHORS)
+    anchors["annual_rebalanced_real"] = (1025.0 / 1200.0, 1.0 - 95.0 / 800.0)
+    monkeypatch.setattr(rebalance_growth, "LABEL_ANCHORS", anchors)
+    with pytest.raises(
+        AssertionError, match="swatch annual_rebalanced_real intrudes on the stamp band"
+    ):
+        rebalance_growth.build_figure(built_root)
 
 
 def test_alt_text_is_the_v1_key_set(built_root: Path) -> None:
@@ -335,6 +360,17 @@ def test_malformed_stamps_are_rejected() -> None:
 
 
 # ---------------------------------------------------------------- geometry
+
+
+def test_humanize_ym_maps_native_tokens_to_month_year_prose() -> None:
+    """The alt-text humanizer is a string split plus a month table.
+
+    A transposed month table would otherwise surface only as a
+    gate-7 byte-diff on a re-render, so pin the mapping directly.
+    """
+    assert rebalance_growth._humanize_ym("1871.01") == "January 1871"
+    assert rebalance_growth._humanize_ym("1929.09") == "September 1929"
+    assert rebalance_growth._humanize_ym("2026.06") == "June 2026"
 
 
 def test_parse_dates_maps_month_to_calendar_year_fraction() -> None:
