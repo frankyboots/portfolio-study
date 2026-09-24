@@ -28,17 +28,8 @@ from analysis.metrics.drawdown import (
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-XLS = REPO_ROOT / "data" / "ie_data.xls"
 MANIFEST_PY = REPO_ROOT / "scripts" / "manifest.py"
 PASS_RESULTS = {n: "pass" for n in range(1, 9)}
-
-
-def _require_vintage() -> None:
-    if not XLS.is_file():
-        pytest.skip(
-            "data/ie_data.xls not present; re-pull per data/RUNLOG.md "
-            "before running builder tests"
-        )
 
 
 def _dates(years: int, start_year: int = 2000) -> list[str]:
@@ -127,12 +118,8 @@ def test_values_dates_length_mismatch_and_short_series_refuse() -> None:
 def test_build_twice_is_byte_identical_and_ties_to_committed(
     tmp_path_factory: pytest.TempPathFactory,
 ) -> None:
-    _require_vintage()
-
     def staged_root() -> Path:
         root = tmp_path_factory.mktemp("drawdown-root")
-        (root / "data").mkdir()
-        shutil.copy2(XLS, root / "data" / "ie_data.xls")
         # The episodes builder reads the committed series artifacts.
         shutil.copytree(
             REPO_ROOT / "artifacts" / "series", root / "artifacts" / "series"
@@ -162,7 +149,6 @@ def test_build_twice_is_byte_identical_and_ties_to_committed(
 
 
 def test_sidecar_schema_and_vintage_copy() -> None:
-    _require_vintage()
     meta = json.loads(
         (REPO_ROOT / "artifacts" / "metrics" / META_NAME).read_text("utf-8")
     )
@@ -193,7 +179,6 @@ def test_manifest_auto_registers_the_episodes_entry(
 ) -> None:
     """HAPPY_PATH auto-registration: the manifest's AD-9 registry picks
     up the episodes sidecar without any authored entry."""
-    _require_vintage()
     staged = tmp_path_factory.mktemp("drawdown-manifest")
     for name in ("analysis", "artifacts", "config", "scripts"):
         shutil.copytree(
@@ -221,7 +206,6 @@ def test_manifest_auto_registers_the_episodes_entry(
 def test_missing_source_csv_refuses_naming_the_series_stage(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    _require_vintage()
     root = tmp_path / "root"
     (root / "artifacts" / "series").mkdir(parents=True)
     assert build_episodes(root) != 0
@@ -231,7 +215,6 @@ def test_missing_source_csv_refuses_naming_the_series_stage(
 
 
 def test_missing_source_sidecar_refuses(tmp_path: Path) -> None:
-    _require_vintage()
     root = tmp_path / "root"
     series_dir = root / "artifacts" / "series"
     series_dir.mkdir(parents=True)
@@ -240,3 +223,26 @@ def test_missing_source_sidecar_refuses(tmp_path: Path) -> None:
         series_dir / "canonical_60_40_monthly_v1.csv",
     )
     assert build_episodes(root) != 0
+
+
+def test_malformed_sidecar_refuses_naming_the_vintage_dict(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A sidecar that parses to a valid JSON object without a vintage dict
+    (or whose vintage is not a dict) must hit the named stderr line and
+    return 1 — not escape as a raw traceback."""
+    root = tmp_path / "root"
+    series_dir = root / "artifacts" / "series"
+    series_dir.mkdir(parents=True)
+    shutil.copy2(
+        REPO_ROOT / "artifacts" / "series" / "canonical_60_40_monthly_v1.csv",
+        series_dir / "canonical_60_40_monthly_v1.csv",
+    )
+    for vintage in (None, "not-a-dict"):  # missing key and wrong-type value
+        (series_dir / "canonical_60_40_monthly_v1.meta.json").write_text(
+            json.dumps({"vintage": vintage}), encoding="utf-8"
+        )
+        assert build_episodes(root) != 0
+        captured = capsys.readouterr()
+        assert "canonical_60_40_monthly_v1.meta.json" in captured.err
+        assert "carries no vintage dict" in captured.err

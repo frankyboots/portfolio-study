@@ -264,7 +264,7 @@ def build_episodes(root: Path) -> int:
         out_dir.mkdir(parents=True, exist_ok=True)
         (out_dir / CSV_NAME).write_bytes(serialize_csv(episodes))
         (out_dir / META_NAME).write_bytes(serialize_meta(episodes, vintage))
-    except (OSError, ValueError, KeyError) as exc:
+    except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
         print(f"metrics: {exc}", file=sys.stderr)
         return 1
     print(

@@ -288,19 +288,68 @@ def test_growth_label_intruding_on_the_keep_out_fails(
         hero_real_growth.build_figure(staged)
 
 
+@pytest.mark.parametrize(
+    "tamper_id",
+    [
+        "peak_value",
+        "trough_value",
+        "recovery_value",
+        "one_sided_empty_recovery",
+        "wrong_depth",
+        "sub_threshold_row",
+    ],
+)
 def test_tampered_episodes_csv_refuses_the_build(
-    tmp_path_factory: pytest.TempPathFactory, capsys: pytest.CaptureFixture[str]
+    tmp_path_factory: pytest.TempPathFactory, tamper_id: str
 ) -> None:
-    """The cross-artifact check: an episodes CSV whose values no longer
-    re-derive from the series CSV must fail the build loudly."""
+    """The cross-artifact check: an episodes CSV that no longer
+    re-derives from the series CSV must fail the build with the named
+    error — a value cell, the depth cell, a one-sided recovery pair,
+    or a row that never cleared the qualifying threshold."""
     staged = _fresh_root(tmp_path_factory)
     episodes = staged / "artifacts" / "metrics" / "60_40_drawdown_episodes_real_v1.csv"
     lines = episodes.read_text(encoding="utf-8").splitlines()
     parts = lines[1].split(",")
-    parts[1] = repr(float(parts[1]) * 1.5)  # peak_value no longer matches the series
-    lines[1] = ",".join(parts)
+
+    if tamper_id in ("peak_value", "trough_value", "recovery_value"):
+        index = {"peak_value": 1, "trough_value": 3, "recovery_value": 5}[tamper_id]
+        parts[index] = repr(float(parts[index]) * 1.5)
+        lines[1] = ",".join(parts)
+        match = "does not match the series value"
+    elif tamper_id == "one_sided_empty_recovery":
+        parts[4] = ""  # recovery_date empty, recovery_value kept
+        lines[1] = ",".join(parts)
+        match = "BOTH recovery cells empty"
+    elif tamper_id == "wrong_depth":
+        parts[6] = repr(float(parts[6]) + 0.25)
+        lines[1] = ",".join(parts)
+        match = "does not re-derive as 1 - trough/peak"
+    else:  # sub_threshold_row: consistent values forming a <15% episode
+        series_lines = (
+            (staged / "artifacts" / "series" / "canonical_60_40_monthly_v1.csv")
+            .read_text(encoding="utf-8")
+            .splitlines()
+        )
+        values = {
+            row.split(",")[0]: float(row.split(",")[1]) for row in series_lines[1:]
+        }
+        peak_d, trough_d, recovery_d = "1871.01", "1871.02", "1871.03"
+        depth = 1.0 - values[trough_d] / values[peak_d]
+        lines[1] = ",".join(
+            [
+                peak_d,
+                repr(values[peak_d]),
+                trough_d,
+                repr(values[trough_d]),
+                recovery_d,
+                repr(values[recovery_d]),
+                repr(depth),
+            ]
+        )
+        match = "below the 0.15 qualifying threshold"
+
     episodes.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    with pytest.raises(ValueError, match="does not match the series value"):
+    with pytest.raises(ValueError, match=match):
         hero_real_growth.build_figure(staged)
 
 
@@ -311,7 +360,9 @@ def test_zero_episode_artifact_builds_a_bandless_zero_count_chart(
     builds a chart with NO bands and a keep-out count line that reads
     zero (checked in the SVG text comments and the record's alt text)."""
     staged = _fresh_root(tmp_path_factory)
-    (staged / "artifacts" / "metrics" / "60_40_drawdown_episodes_real_v1.csv").write_text(
+    (
+        staged / "artifacts" / "metrics" / "60_40_drawdown_episodes_real_v1.csv"
+    ).write_text(
         "peak_date,peak_value,trough_date,trough_value,"
         "recovery_date,recovery_value,depth\n",
         encoding="utf-8",

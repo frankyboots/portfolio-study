@@ -48,6 +48,7 @@ from analysis.figures.rebalance_growth import (
     _rects_overlap,
     _stamp_lines,
 )
+from analysis.metrics.drawdown import EPS, THRESHOLD
 
 NAME = "hero_real_growth_v1"
 SCRIPT_REL = "analysis/figures/hero_real_growth.py"
@@ -197,13 +198,15 @@ def _check_episodes_against_series(
 
     Every date cell must exist on the series index and every value cell
     must equal the series value at that date (the repr() round-trip is
-    exact); the recovery of an open episode must be empty. A mismatch is
-    a cross-artifact state: fail the build loudly instead of rendering
-    bands the series does not support.
+    exact); the depth cell must re-derive as 1 - trough/peak and clear
+    the >=15% qualifying threshold; the recovery of an open episode must
+    be empty. A mismatch is a cross-artifact state: fail the build
+    loudly instead of rendering bands the series does not support.
     """
     dates = {str(d): i for i, d in enumerate(series["date"])}
     values = list(series["real"])
     for pos, row in enumerate(episodes.itertuples(index=False)):
+        parsed: dict[str, float] = {}
         for field in ("peak_date", "trough_date"):
             label = str(getattr(row, field))
             if label not in dates:
@@ -217,6 +220,24 @@ def _check_episodes_against_series(
                     f"episodes row {pos + 1}: {field} value {cell!r} does not "
                     f"match the series value {values[dates[label]]!r}"
                 )
+            parsed[field.replace("_date", "_value")] = float(cell)
+        # The depth cell must re-derive from the (now-verified) peak and
+        # trough — the repr() round-trip is exact, so byte-exact equality
+        # holds — and the row must clear the qualifying threshold, else a
+        # hand-edited artifact would smuggle in a band the metrics stage
+        # never emitted.
+        depth_cell = float(str(row.depth))
+        expected_depth = 1.0 - parsed["trough_value"] / parsed["peak_value"]
+        if depth_cell != expected_depth:
+            raise ValueError(
+                f"episodes row {pos + 1}: depth {depth_cell!r} does not "
+                f"re-derive as 1 - trough/peak ({expected_depth!r})"
+            )
+        if depth_cell < THRESHOLD - EPS:
+            raise ValueError(
+                f"episodes row {pos + 1}: depth {depth_cell!r} is below the "
+                f"{THRESHOLD:g} qualifying threshold"
+            )
         rec_label = str(row.recovery_date)
         if rec_label:
             if rec_label not in dates:
@@ -403,6 +424,15 @@ def build_figure(root: Path) -> int:
     # Decimal plot-x: the pilot's DATA.md-safe parse of the YYYY.MM cells.
     x = _parse_dates(series["date"].astype(float))
     values = series["real"]
+    # The x range is locked (X_MIN/X_MAX); a vintage whose series extends
+    # past it would be silently clipped by set_xlim, so guard it loudly,
+    # like the builder's other layout invariants.
+    x_lo, x_hi = float(x.min()), float(x.max())
+    if not (X_MIN <= x_lo and x_hi <= X_MAX):
+        raise AssertionError(
+            f"series x-span [{x_lo}, {x_hi}] does not fit the locked range "
+            f"[{X_MIN}, {X_MAX}]; set_xlim would clip the data"
+        )
     band_x = _band_x_extents(series, episodes, x)
     if len(band_x) != len(episodes):
         raise AssertionError("band extents disagree with the episodes artifact")
