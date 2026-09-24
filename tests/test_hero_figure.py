@@ -27,6 +27,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from analysis.figures import _records, hero_real_growth
+from analysis.figures.hero_real_growth import _band_x_extents
 
 FIGURE_NAME = "hero_real_growth_v1"
 SUFFIXES = (".png", ".svg", ".figure.json")
@@ -211,7 +212,7 @@ def test_measurements_and_band_hatch_min_px_floor(built_root: Path) -> None:
         - 1
     )
     elements = {m["element"] for m in rec["measurements"]}
-    for i in range(n - 1):
+    for i in range(n):
         assert f"band_year_label_{i:02d}" in elements
         assert f"band_year_swatch_{i:02d}" in elements
 
@@ -301,6 +302,52 @@ def test_tampered_episodes_csv_refuses_the_build(
     episodes.write_text("\n".join(lines) + "\n", encoding="utf-8")
     with pytest.raises(ValueError, match="does not match the series value"):
         hero_real_growth.build_figure(staged)
+
+
+def test_zero_episode_artifact_builds_a_bandless_zero_count_chart(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> None:
+    """EPISODE_NONE, the builder side: a header-only episodes artifact
+    builds a chart with NO bands and a keep-out count line that reads
+    zero (checked in the SVG text comments and the record's alt text)."""
+    staged = _fresh_root(tmp_path_factory)
+    (staged / "artifacts" / "metrics" / "60_40_drawdown_episodes_real_v1.csv").write_text(
+        "peak_date,peak_value,trough_date,trough_value,"
+        "recovery_date,recovery_value,depth\n",
+        encoding="utf-8",
+    )
+    assert hero_real_growth.build_figure(staged) == 0
+    svg = (staged / "artifacts" / "figures" / f"{FIGURE_NAME}.svg").read_text(
+        encoding="utf-8"
+    )
+    assert "0 EPISODES" in svg  # the keep-out count line reads zero
+    assert "drawdown-band-0" not in svg  # no bands rendered
+    rec = _record(staged)
+    assert "0 hatched bands mark the drawdown episodes" in rec["alt_text"]["alt_text"]
+
+
+def test_open_episode_band_extends_to_the_series_tail() -> None:
+    """EPISODE_OPEN, the builder side: an episode with empty recovery
+    cells bands from its peak to the LAST series month (the tail)."""
+    import pandas as pd
+
+    series = pd.DataFrame(
+        {"date": ["2000.01", "2000.02", "2000.03"], "real": [1.0, 0.5, 0.6]}
+    )
+    x = pd.Series([2000.0, 2000.0 + 1 / 12, 2000.0 + 2 / 12])
+    episodes = pd.DataFrame(
+        {
+            "peak_date": ["2000.01"],
+            "peak_value": ["1.0"],
+            "trough_date": ["2000.02"],
+            "trough_value": ["0.5"],
+            "recovery_date": [""],
+            "recovery_value": [""],
+            "depth": ["0.5"],
+        }
+    )
+    extents = _band_x_extents(series, episodes, x)
+    assert extents == [(2000.0, float(x.iloc[-1]))]
 
 
 def test_missing_episodes_csv_refuses_naming_the_metrics_stage(

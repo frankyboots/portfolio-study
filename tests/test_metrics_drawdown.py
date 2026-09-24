@@ -69,6 +69,13 @@ def test_sub_15pct_dip_produces_no_episode() -> None:
     assert find_episodes(values, dates) == []
 
 
+def test_monotone_index_produces_no_episode() -> None:
+    """A strictly rising index never goes underwater: no episode opens,
+    so the episode set is empty (the EPISODE_NONE walk-side row)."""
+    values = [float(100 + i) for i in range(24)]
+    assert find_episodes(values, _dates(24)) == []
+
+
 def test_open_15pct_episode_at_the_tail_keeps_empty_recovery_fields() -> None:
     """A qualifying drawdown still unrecovered at the series tail is
     returned with None recovery fields (the CSV leaves those cells
