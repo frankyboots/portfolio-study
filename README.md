@@ -30,7 +30,8 @@ From a clean clone, on the pinned Python environment:
    export-freshness gate last, proving the regenerated figure matches the
    committed one in every non-stamp byte.
 4. **Build the site.** `cd web && npm ci && npm run build` — the site binds
-   only to the manifest and the committed figure records.
+   only to the manifest, the committed figure records, and the committed
+   drawdown-episodes artifact.
 
 The data artifacts (the monthly series CSV and the drawdown-episodes CSV)
 reproduce byte-identically; that is the promise the gates check, not a claim

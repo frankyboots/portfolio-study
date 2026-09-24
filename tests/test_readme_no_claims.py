@@ -57,3 +57,34 @@ def test_readme_states_no_vintage_pin() -> None:
                         "(vintage pins live in data/DATA.md by reference)"
                     )
     assert not violations, "\n".join(violations)
+
+
+def test_readme_hero_alt_matches_the_committed_record() -> None:
+    """The README's hero image alt is the record's generated
+    ``alt_text`` verbatim (D6): a re-pull that re-stamps the record
+    must surface here as a stale-alt failure, not drift silently."""
+    import json
+
+    readme = REPO_ROOT / "README.md"
+    assert readme.is_file(), "the root README.md is missing"
+    record_path = (
+        REPO_ROOT / "artifacts" / "figures" / "hero_real_growth_v1.figure.json"
+    )
+    assert record_path.is_file(), "the committed hero record is missing"
+    record = json.loads(record_path.read_text(encoding="utf-8"))
+    expected_alt = record["alt_text"]["alt_text"]
+    # The alt may contain parentheses; anchor on the exact image URL so
+    # the match ends at the alt's closing bracket.
+    match = re.search(
+        r"!\[(.*?)\]\(artifacts/figures/hero_real_growth_v1\.png\)",
+        readme.read_text(encoding="utf-8"),
+        re.DOTALL,
+    )
+    assert match is not None, (
+        "the README embeds no hero image with URL "
+        "artifacts/figures/hero_real_growth_v1.png"
+    )
+    assert match.group(1) == expected_alt, (
+        "the README hero alt has drifted from the committed record's "
+        "alt_text.alt_text; re-copy it from the record"
+    )
