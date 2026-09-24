@@ -7,7 +7,14 @@
 //
 // Fails loudly when the manifest is missing (the pipeline must have run).
 
-import { cpSync, existsSync, mkdirSync, readdirSync, statSync } from "node:fs";
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  rmSync,
+  statSync
+} from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -25,6 +32,10 @@ if (!existsSync(manifest)) {
 
 const dest = path.join(webRoot, "public", "artifacts");
 const figuresDest = path.join(dest, "figures");
+// Clear any previous staging first: an export removed from
+// artifacts/figures/ must not ship a stale staged copy into dist (and
+// future edition mints).
+rmSync(dest, { recursive: true, force: true });
 mkdirSync(figuresDest, { recursive: true });
 
 cpSync(manifest, path.join(dest, "manifest.json"));
