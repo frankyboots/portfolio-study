@@ -17,16 +17,31 @@ jobs:
       - name: Obtain data/ie_data.xls (data/RUNLOG.md step 1)
         run: |
           set -euo pipefail
-          url="$(curl -fsSL https://shillerdata.com/ | grep -oE '(https?:)?//[^"<> ]*ie_data\\.xls\?ver=[^"<> ]*' | head -n 1)"
+          # Browser-like user agent + retries: Wix edge protection has refused
+          # bare-curl runner traffic; diagnose which leg fails and with what.
+          ua="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+          page_status="$(curl -fsSL -A "$ua" --retry 3 --retry-all-errors -w '%{http_code}' https://shillerdata.com/ -o /tmp/shiller_page.html)" || {
+            echo "DIAG: page fetch failed: curl exit $? (HTTP ${page_status:-unknown})" >&2
+            echo "DIAG: page head (first 500 bytes):" >&2
+            head -c 500 /tmp/shiller_page.html >&2 2>/dev/null || echo "(empty)" >&2
+            exit 1
+          }
+          url="$(grep -oE '(https?:)?//[^"<> ]*ie_data\.xls\?ver=[^"<> ]*' /tmp/shiller_page.html | head -n 1)"
           if [ -z "$url" ]; then
-            echo "no ie_data.xls ?ver= CDN blob href found on shillerdata.com" >&2
+            echo "DIAG: no ie_data.xls ?ver= CDN blob href found on shillerdata.com (HTTP $page_status)" >&2
+            echo "DIAG: page head (first 500 bytes):" >&2
+            head -c 500 /tmp/shiller_page.html >&2
             exit 1
           fi
           # The live page serves a scheme-relative href (//host/...); normalize to absolute.
           case "$url" in
             //*) url="https:$url" ;;
           esac
-          curl -fsSL "$url" -o data/ie_data.xls
+          echo "blob URL: $url"
+          curl -fsSL -A "$ua" --retry 3 --retry-all-errors "$url" -o data/ie_data.xls || {
+            echo "DIAG: blob download failed for $url (curl exit $?)" >&2
+            exit 1
+          }
       - name: Byte-verify against the DATA.md section 1.1 pin
         run: |
           set -euo pipefail
@@ -56,16 +71,31 @@ jobs:
       - name: Obtain data/ie_data.xls (data/RUNLOG.md step 1)
         run: |
           set -euo pipefail
-          url="$(curl -fsSL https://shillerdata.com/ | grep -oE '(https?:)?//[^"<> ]*ie_data\\.xls\?ver=[^"<> ]*' | head -n 1)"
+          # Browser-like user agent + retries: Wix edge protection has refused
+          # bare-curl runner traffic; diagnose which leg fails and with what.
+          ua="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+          page_status="$(curl -fsSL -A "$ua" --retry 3 --retry-all-errors -w '%{http_code}' https://shillerdata.com/ -o /tmp/shiller_page.html)" || {
+            echo "DIAG: page fetch failed: curl exit $? (HTTP ${page_status:-unknown})" >&2
+            echo "DIAG: page head (first 500 bytes):" >&2
+            head -c 500 /tmp/shiller_page.html >&2 2>/dev/null || echo "(empty)" >&2
+            exit 1
+          }
+          url="$(grep -oE '(https?:)?//[^"<> ]*ie_data\.xls\?ver=[^"<> ]*' /tmp/shiller_page.html | head -n 1)"
           if [ -z "$url" ]; then
-            echo "no ie_data.xls ?ver= CDN blob href found on shillerdata.com" >&2
+            echo "DIAG: no ie_data.xls ?ver= CDN blob href found on shillerdata.com (HTTP $page_status)" >&2
+            echo "DIAG: page head (first 500 bytes):" >&2
+            head -c 500 /tmp/shiller_page.html >&2
             exit 1
           fi
           # The live page serves a scheme-relative href (//host/...); normalize to absolute.
           case "$url" in
             //*) url="https:$url" ;;
           esac
-          curl -fsSL "$url" -o data/ie_data.xls
+          echo "blob URL: $url"
+          curl -fsSL -A "$ua" --retry 3 --retry-all-errors "$url" -o data/ie_data.xls || {
+            echo "DIAG: blob download failed for $url (curl exit $?)" >&2
+            exit 1
+          }
       - name: Byte-verify against the DATA.md section 1.1 pin
         run: |
           set -euo pipefail
