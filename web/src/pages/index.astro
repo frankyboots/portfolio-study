@@ -46,12 +46,24 @@ const vintageLabel = lastRow.replace(".", "-");
 // The staged hero record (the prebuild step stages every committed
 // figure export + record); the wrapper refuses a missing provenance
 // field, so this parse fails the build loudly when the figure is absent.
-const record = JSON.parse(
-  readFileSync(
-    path.join(stagedRoot, "figures", "hero_real_growth_v1.figure.json"),
-    "utf8"
-  )
-);
+let record;
+try {
+  record = JSON.parse(
+    readFileSync(
+      path.join(stagedRoot, "figures", "hero_real_growth_v1.figure.json"),
+      "utf8"
+    )
+  );
+} catch {
+  throw new Error(
+    `index: staged hero record not found at ${path.join(
+      stagedRoot,
+      "figures",
+      "hero_real_growth_v1.figure.json"
+    )} — the prebuild staging step (npm run build runs it) must have copied ` +
+      "the figure exports into web/public/artifacts/"
+  );
+}
 
 // Caption numbers, computed at build from the data artifacts.
 // Episode count = the committed episodes artifact's data rows.
