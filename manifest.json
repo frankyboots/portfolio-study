@@ -1,5 +1,23 @@
 {
   "artifacts": {
+    "60_40_drawdown_episodes_real_v1": {
+      "data_path": "artifacts/metrics/60_40_drawdown_episodes_real_v1.csv",
+      "data_sha256": "e36f1c24d038ed5094b78dcaf64ecb1a4e0cb420d81deea8df0550657a9453f9",
+      "index": "YYYY.MM",
+      "meta_path": "artifacts/metrics/60_40_drawdown_episodes_real_v1.meta.json",
+      "meta_sha256": "7eb7b6016852ef36c0efa08e9c7f737e06ff7a290406135e7a457c846387d9f3",
+      "name": "60_40_drawdown_episodes_real_v1",
+      "owner": "analysis.metrics.drawdown",
+      "serialization": "csv: utf-8, LF newlines, final newline, values via Python repr(); open episodes leave the recovery cells empty; sidecar json: json.dumps(obj, indent=2, sort_keys=True) + trailing newline",
+      "shape_family": "long-table",
+      "units": {
+        "depth": "decimal fraction of the peak lost at the worst trough (1 - trough/peak); 0.15 = a 15% drawdown",
+        "peak_value": "growth index, decimal (real monthly-rebalanced 60/40; base 1.0 at 1871.01)",
+        "recovery_value": "growth index, decimal (first month at or above the peak; same base; empty for an open episode)",
+        "trough_value": "growth index, decimal (worst month of the episode; same base as peak_value)"
+      },
+      "version": 1
+    },
     "canonical_60_40_annual_v1": {
       "data_path": "artifacts/series/canonical_60_40_annual_v1.csv",
       "data_sha256": "f2eaa61ce7812bd891c0622bb4ebeed20426c1e6df0f7650258e3594a4f2cc2d",
@@ -50,7 +68,7 @@
     }
   },
   "build": {
-    "head": "65463145568e80ad15001d048c0e6a9cd18212b1"
+    "head": "96ec68f4f0f9447020b32ae01753eaf2ab24830c"
   },
   "edition": null,
   "gates": [
@@ -114,10 +132,12 @@
       "route": "canonical_60_40_rebalance_diff_v1"
     },
     {
+      "route": "60_40_drawdown_episodes_real_v1"
+    },
+    {
       "depends_on": [
         "canonical_60_40_monthly_v1",
-        "canonical_60_40_annual_v1",
-        "canonical_60_40_rebalance_diff_v1"
+        "60_40_drawdown_episodes_real_v1"
       ],
       "route": "/"
     },
