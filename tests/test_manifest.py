@@ -338,3 +338,15 @@ def test_registry_malformed_json_refuses(tmp_path: Path) -> None:
     (web / "render_registry.json").write_text("{not valid json", encoding="utf-8")
     with pytest.raises(SystemExit, match="not valid JSON"):
         m.build_manifest(staged, PASS_RESULTS)
+
+
+def test_registry_non_utf8_refuses(tmp_path: Path) -> None:
+    # A non-UTF-8 byte in the registry must hit the documented refusal
+    # (SystemExit naming the file), not a raw UnicodeDecodeError.
+    m = load_manifest_module()
+    staged = stage_root(tmp_path / "nonutf8")
+    web = staged / "web"
+    web.mkdir()
+    (web / "render_registry.json").write_bytes(b'\xff\xfe{"route"}')
+    with pytest.raises(SystemExit, match="not valid UTF-8"):
+        m.build_manifest(staged, PASS_RESULTS)

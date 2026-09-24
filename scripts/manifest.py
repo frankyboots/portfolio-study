@@ -214,7 +214,11 @@ def load_render_registry(
         return []
     rel = path.relative_to(root).as_posix()
     try:
-        doc = json.loads(path.read_text(encoding="utf-8"))
+        text = path.read_text(encoding="utf-8")
+    except UnicodeDecodeError as exc:
+        raise SystemExit(f"manifest: {rel} is not valid UTF-8: {exc}") from exc
+    try:
+        doc = json.loads(text)
     except json.JSONDecodeError as exc:
         raise SystemExit(f"manifest: {rel} is not valid JSON: {exc}") from exc
     if not isinstance(doc, list):
