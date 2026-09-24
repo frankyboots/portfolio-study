@@ -195,8 +195,8 @@ def test_manifest_auto_registers_the_episodes_entry(
             ignore=shutil.ignore_patterns("__pycache__"),
         )
     spec = importlib.util.spec_from_file_location("manifest_under_test", MANIFEST_PY)
+    assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
-    assert spec.loader is not None
     spec.loader.exec_module(module)
     manifest = module.build_manifest(staged, PASS_RESULTS)
     entry = manifest["artifacts"][NAME]

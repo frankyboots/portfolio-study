@@ -22,8 +22,8 @@ def _load_gate6_patterns() -> dict:
     """Gate 6's claim patterns, reused verbatim (D8: no re-implemented
     second copy of the regexes that could drift)."""
     spec = importlib.util.spec_from_file_location("crossdoc_under_test", GATE6_PY)
+    assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
-    assert spec.loader is not None
     spec.loader.exec_module(module)
     return {
         "hex64": module.HEX64_RE,
