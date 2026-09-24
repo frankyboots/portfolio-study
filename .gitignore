@@ -17,3 +17,12 @@ __pycache__/
 # matplotlib font cache: pipeline stages point MPLCONFIGDIR at config/,
 # where matplotlib writes its fontlist cache — build scratch, not config.
 config/fontlist*.json
+
+# web/ build scratch (node deps, Astro build output, build-time staged
+# copies of the manifest + committed figure exports — see
+# web/scripts/stage-artifacts.mjs; committed exports stay single-sourced
+# under artifacts/).
+web/node_modules/
+web/dist/
+web/.astro/
+web/public/artifacts/

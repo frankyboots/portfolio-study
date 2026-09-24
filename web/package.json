@@ -1,0 +1,19 @@
+{
+  "name": "portfolio-study-web",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "predev": "node scripts/stage-artifacts.mjs",
+    "build": "astro build",
+    "prebuild": "node scripts/stage-artifacts.mjs",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "astro": "7.3.4"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true
+  }
+}

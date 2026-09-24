@@ -4,7 +4,9 @@ Covers the manifest schema, the AD-9 registry derived verbatim from the
 committed sidecars, determinism, the builder's refusals (zero sidecars,
 non-uniform vintage stamps, pin drift, gates not all passing), the
 git-HEAD stamp (including head-null on a non-git root), the script-run
-refusal (exit 2), and the no-analysis-writer assertion.
+refusal (exit 2), the no-analysis-writer assertion, and (story 1.7 D4)
+the authored render-registry inlining with the full gate-5 contract
+enforced at write time.
 """
 
 import hashlib
@@ -72,8 +74,9 @@ def test_manifest_schema_and_registry(tmp_path: Path) -> None:
         "render_registry",
     }
     assert manifest["schema_version"] == "1"
-    assert manifest["edition"] is None  # inert until 1.7
-    assert manifest["render_registry"] == []  # inert until 1.7/1.8
+    assert manifest["edition"] is None  # null until the first mint (1.7 D3)
+    # NO_WEB row: staged roots carry no web/, so the registry inlines as [].
+    assert manifest["render_registry"] == []
     assert manifest["build"] == {"head": None}  # staged root: no .git
     assert manifest["vintage"] == {"sha256": PIN, "last_row": "2026.09", "k": 333.8925}
 
@@ -248,3 +251,90 @@ def test_no_analysis_module_writes_the_manifest() -> None:
         assert not ("manifest" in line.lower() and "write" in line.lower()), (
             f"the BUILD-HEAD manifest reader must stay read-only: {line.strip()}"
         )
+
+
+# ---------------------------------------------------------------- story 1.7: render registry
+
+#: The artifact names the staged root's sidecars register; the registry's
+#: artifact-declaration entries name them, exactly like
+# web/render_registry.json does for the real repo.
+ARTIFACT_NAMES = (
+    "canonical_60_40_monthly_v1",
+    "canonical_60_40_annual_v1",
+    "canonical_60_40_rebalance_diff_v1",
+)
+
+
+def write_registry(staged: Path, entries: object) -> None:
+    web = staged / "web"
+    web.mkdir(parents=True, exist_ok=True)
+    (web / "render_registry.json").write_text(
+        json.dumps(entries, indent=2) + "\n", encoding="utf-8"
+    )
+
+
+def test_registry_inlines_authored_entries(tmp_path: Path) -> None:
+    # REGISTRY_INLINE: the authored registry (artifact-declaration
+    # entries first, then the page routes with depends_on) lands in the
+    # manifest verbatim, in order.
+    m = load_manifest_module()
+    staged = stage_root(tmp_path)
+    entries = [
+        *[{"route": name} for name in ARTIFACT_NAMES],
+        {"route": "/", "depends_on": list(ARTIFACT_NAMES)},
+        {
+            "route": "/figures/rebalance-growth",
+            "depends_on": [ARTIFACT_NAMES[0], ARTIFACT_NAMES[1]],
+        },
+    ]
+    write_registry(staged, entries)
+    manifest = m.build_manifest(staged, PASS_RESULTS)
+    assert manifest["render_registry"] == entries
+
+
+def test_registry_bad_entries_refuse(tmp_path: Path) -> None:
+    # REGISTRY_BAD rows: write-time validation enforces the full gate-5
+    # contract, because gate 5 reads the *previously* committed manifest
+    # and would only catch these on the next run.
+    m = load_manifest_module()
+    first = ARTIFACT_NAMES[0]
+    declaration = [{"route": first}]
+    cases: list[tuple[object, str]] = [
+        # dup / non-string route
+        ([{"route": first}, {"route": first}], "duplicate route"),
+        ([{"route": first}, {"route": 1}], "string 'route'"),
+        ([first], "string 'route'"),
+        # bad depends_on type
+        ([{"route": "/x", "depends_on": "bogus"}], "not a list of strings"),
+        (
+            [declaration[0], {"route": "/x", "depends_on": [1]}],
+            "not a list of strings",
+        ),
+        # dangling depends_on (absent from the artifact registry)
+        (
+            [*declaration, {"route": "/x", "depends_on": ["ghost_v1"]}],
+            "absent from the artifact registry",
+        ),
+        # out-of-order depends_on (dependency declared at a later position)
+        (
+            [{"route": "/x", "depends_on": [first]}, *declaration],
+            "earlier registry position",
+        ),
+        # container shape
+        ({"route": first}, "not a list"),
+    ]
+    for i, (entries, fragment) in enumerate(cases):
+        staged = stage_root(tmp_path / f"bad{i}")
+        write_registry(staged, entries)
+        with pytest.raises(SystemExit, match=fragment):
+            m.build_manifest(staged, PASS_RESULTS)
+
+
+def test_registry_malformed_json_refuses(tmp_path: Path) -> None:
+    m = load_manifest_module()
+    staged = stage_root(tmp_path / "badjson")
+    web = staged / "web"
+    web.mkdir()
+    (web / "render_registry.json").write_text("{not valid json", encoding="utf-8")
+    with pytest.raises(SystemExit, match="not valid JSON"):
+        m.build_manifest(staged, PASS_RESULTS)

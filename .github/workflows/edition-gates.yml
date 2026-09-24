@@ -92,3 +92,19 @@ jobs:
         run: uv run python scripts/check_export_freshness.py
       - name: gate 8 -- import wall
         run: uv run python scripts/check_import_walls.py
+
+  editions:
+    # Story 1.7 / AD-5, NFR5: editions are committed frozen trees; refuse
+    # any modify/delete/append under an edition that exists at the base
+    # ref. Not one of the eight AD-8 gates (the consistency test pins
+    # that exactly), so it runs on the runner's system python3 -- the
+    # guard is stdlib-only.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: editions no-overwrite guard
+        run: python3 scripts/check_editions.py
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}

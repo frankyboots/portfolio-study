@@ -1,0 +1,65 @@
+# Story 1.7 D2: one publish pipeline owns the whole deployed tree.
+# Push to main only (never PR). The whole deployed tree is assembled
+# from repo content alone on every deploy: fresh web/ build at the base
+# root (latest), committed web/editions/* under /editions/, and the
+# manual/ placeholder under /manual/.
+#
+# Go-live additionally requires enabling Pages (Settings -> Pages ->
+# GitHub Actions); this workflow delivers the pipeline, not the flip.
+# Without `permissions: {pages: write, id-token: write}` the
+# deploy-pages action 403s.
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Build and deploy the assembled tree
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node (pinned by .nvmrc)
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install pinned dependencies (npm ci, never npm install)
+        run: npm ci
+        working-directory: web
+      - name: Build latest (prebuild stages the manifest + figure exports)
+        run: npm run build
+        working-directory: web
+        env:
+          PAGES_BASE_PATH: ${{ vars.PAGES_BASE_PATH || '/portfolio-study' }}
+      - name: Assemble the deployed tree (latest at root, /editions/, /manual/)
+        run: |
+          set -euo pipefail
+          rm -rf _site
+          mkdir -p _site
+          cp -R web/dist/. _site/
+          # web/editions/ absent or empty is the valid zero-edition state.
+          if [ -d web/editions ]; then
+            cp -R web/editions _site/editions
+          fi
+          mkdir -p _site/manual
+          cp -R manual/. _site/manual/
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4

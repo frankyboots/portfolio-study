@@ -12,8 +12,13 @@ sha256, the build-input HEAD stamp, and the eight AD-8 gate results.
 Deterministic bytes: ``json.dumps(obj, indent=2, sort_keys=True)`` plus
 a trailing newline (the sidecar discipline); no wall-clock fields; all
 paths are root-relative POSIX. ``build.head`` is ``null`` when the root
-is not a git checkout (staged tmp-root test mode). ``edition`` and
-``render_registry`` are inert until stories 1.7/1.8.
+is not a git checkout (staged tmp-root test mode). ``edition`` is
+``null`` until the first mint (story 1.7: this writer never mints).
+``render_registry`` inlines the authored ``web/render_registry.json``
+(``[]`` when the file is absent) enforcing the full gate-5 contract at
+write time -- gate 5 reads the *previously* committed manifest, so
+write-time validation is the only check that sees a first-authored
+registry before it lands.
 
 Imported only by ``scripts/pipeline.py``; the analysis layers never
 touch the manifest (an assertion test enforces that). Running this file
@@ -60,6 +65,7 @@ GATES: tuple[tuple[int, str, str], ...] = (
 
 SIDECAR_SUFFIX = ".meta.json"
 DATA_SUFFIX = ".csv"
+RENDER_REGISTRY_REL = ("web", "render_registry.json")
 
 
 def _sha256_file(path: Path) -> str:
@@ -191,6 +197,59 @@ def build_registry(
     return registry, vintage
 
 
+def load_render_registry(
+    root: Path, artifacts: Mapping[str, object]
+) -> list[dict[str, object]]:
+    """The authored ``web/render_registry.json`` verbatim; ``[]`` when absent.
+
+    Enforces the full gate-5 contract at write time (story 1.7 D4): a
+    list of objects each carrying a unique string ``route``; an
+    optional ``depends_on`` list of strings; every dependency present
+    in the artifact registry's keys AND matched by an earlier registry
+    entry's ``route`` (artifact-declaration entries first). Raises
+    ``SystemExit`` naming the offender.
+    """
+    path = root.joinpath(*RENDER_REGISTRY_REL)
+    if not path.is_file():
+        return []
+    rel = path.relative_to(root).as_posix()
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise SystemExit(f"manifest: {rel} is not valid JSON: {exc}") from exc
+    if not isinstance(doc, list):
+        raise SystemExit(f"manifest: {rel} top level is not a list of entries")
+    routes_so_far: list[str] = []
+    for i, entry in enumerate(doc):
+        if not isinstance(entry, dict) or not isinstance(entry.get("route"), str):
+            raise SystemExit(
+                f"manifest: {rel}[{i}] is not an object with a string 'route'"
+            )
+        route = entry["route"]
+        if route in routes_so_far:
+            raise SystemExit(f"manifest: {rel}[{i}]: duplicate route {route!r}")
+        routes_so_far.append(route)
+        depends = entry.get("depends_on", [])
+        if not isinstance(depends, list) or not all(
+            isinstance(dep, str) for dep in depends
+        ):
+            raise SystemExit(
+                f"manifest: {rel}[{i}] ({route!r}): depends_on is not a list of strings"
+            )
+        for dep in depends:
+            if dep not in artifacts:
+                raise SystemExit(
+                    f"manifest: {rel}[{i}] ({route!r}): depends_on {dep!r} is absent "
+                    "from the artifact registry"
+                )
+            elif dep not in routes_so_far[:-1]:
+                raise SystemExit(
+                    f"manifest: {rel}[{i}] ({route!r}): depends_on {dep!r} does not "
+                    "appear at an earlier registry position"
+                )
+    return doc
+
+
 def build_manifest(root: Path, results: Mapping[int, str]) -> dict[str, object]:
     """Assemble the manifest object.
 
@@ -207,6 +266,7 @@ def build_manifest(root: Path, results: Mapping[int, str]) -> dict[str, object]:
             f"{missing} and/or not passing {failed}"
         )
     registry, vintage = build_registry(root)
+    render_registry = load_render_registry(root, registry)
     gates: list[dict[str, object]] = []
     for number, name, runner in GATES:
         gates.append(
@@ -224,7 +284,7 @@ def build_manifest(root: Path, results: Mapping[int, str]) -> dict[str, object]:
         "build": {"head": git_head(root)},
         "artifacts": registry,
         "gates": gates,
-        "render_registry": [],
+        "render_registry": render_registry,
     }
 
 

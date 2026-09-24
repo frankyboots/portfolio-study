@@ -1,0 +1,70 @@
+---
+// The latest-at-root study layout. Static HTML only: no client-side
+// JavaScript is shipped (story 1.7 D9), so there are no islands here.
+import "../styles/tokens.css";
+
+interface Props {
+  title: string;
+}
+const { title } = Astro.props;
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+  </head>
+  <body>
+    <main class="page">
+      <slot />
+    </main>
+  </body>
+</html>
+
+<style>
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-serif);
+    font-size: 16px;
+    line-height: 1.55;
+  }
+  .page {
+    max-width: 46rem;
+    margin: 0 auto;
+    padding: 24px 16px 48px;
+  }
+  h1.flag {
+    font-size: clamp(30px, 6vw, 54px);
+    font-weight: 900;
+    line-height: 0.95;
+    text-transform: uppercase;
+    margin: 24px 0 8px;
+  }
+  .lede {
+    font-size: 15.5px;
+    line-height: 1.6;
+    max-width: var(--measure);
+    color: var(--ink2);
+    margin: 0 0 24px;
+  }
+  h2 {
+    font-size: 22px;
+    font-weight: 900;
+    text-transform: uppercase;
+    margin: 0 0 12px;
+  }
+  .section-rule {
+    border: none;
+    border-top: 1.5px solid var(--ink);
+    margin: 24px 0 16px;
+  }
+  a {
+    color: var(--accent-red);
+  }
+  .mono {
+    font-family: var(--font-mono);
+  }
+</style>

@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Field Manual — Portfolio Study</title>
+    <style>
+      /* Print-styled placeholder (story 1.7 D7): no JS, the archival
+         register, zero border-radius. The real print target is a later
+         story; this page proves the /manual/ route space. */
+      :root {
+        --paper: #faf6ea;
+        --ink: #0b0906;
+        --ink2: #2b251a;
+        --rule: #8a7e63;
+        --faded: #776c56;
+        --accent-red: #6b1212;
+        --font-serif: Georgia, "Times New Roman", Times, serif;
+        --font-mono: ui-monospace, Menlo, "Courier New", Courier, monospace;
+      }
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font-family: var(--font-serif);
+        font-size: 16px;
+        line-height: 1.55;
+      }
+      main {
+        max-width: 46rem;
+        margin: 0 auto;
+        padding: 48px 24px;
+      }
+      h1 {
+        font-size: clamp(30px, 6vw, 54px);
+        font-weight: 900;
+        line-height: 0.95;
+        text-transform: uppercase;
+        margin: 0 0 8px;
+      }
+      .file-no {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: var(--faded);
+        margin: 0;
+      }
+      hr {
+        border: 0;
+        border-top: 1.5px solid var(--ink);
+        margin: 24px 0 16px;
+      }
+      p {
+        max-width: 62ch;
+      }
+      @media print {
+        body {
+          background: white;
+        }
+        hr {
+          border-top-color: var(--rule);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="file-no">Field Manual — placeholder</p>
+      <h1>Field Manual</h1>
+      <hr />
+      <p>
+        Placeholder page for the Field Manual route space. The print target
+        is a later story; this static page carries no JavaScript and proves
+        the <code>/manual/</code> route in the deployed tree.
+      </p>
+    </main>
+  </body>
+</html>

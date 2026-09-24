@@ -1,0 +1,174 @@
+---
+// The figure wrapper (DESIGN.md "figure-wrapper"): the Astro-owned frame
+// around a matplotlib chart. Element order, nothing else:
+//   exhibit-no + exhibit-title, caption, 1px rule, chart, stamp row,
+//   source line, permalink.
+//
+// Story 1.7 AD-4: no computation at the render layer. Every value below
+// is bound from the committed figure record (staged into
+// public/artifacts/ by scripts/stage-artifacts.mjs); the alt text is the
+// record's alt_text.alt_text string verbatim. A record missing any
+// provenance field fails the build, naming the figure and the field
+// (EXPERIENCE.md: the build fails, not the page).
+import "../styles/tokens.css";
+
+interface SeriesEntry {
+  id?: string;
+  display_name?: string;
+}
+
+interface FigureRecord {
+  name?: string;
+  builder?: string;
+  stamp?: string;
+  alt_text?: { alt_text?: string; trend?: string };
+  series?: SeriesEntry[];
+  source_artifacts?: string[];
+  canvas_px?: { width?: number; height?: number };
+}
+
+interface Props {
+  record: FigureRecord;
+  exhibitNo: string;
+  title: string;
+  chartSrc: string;
+}
+
+const { record, exhibitNo, title, chartSrc } = Astro.props;
+
+// Provenance-set refusal: name the figure and every missing field.
+function requireString(value: unknown, field: string): string {
+  if (typeof value !== "string" || value.trim() === "") {
+    throw new Error(
+      `figure "${String(record.name ?? "(unknown name)")}": record missing provenance field "${field}"`
+    );
+  }
+  return value;
+}
+
+const figureName = requireString(record.name, "name");
+const builder = requireString(record.builder, "builder");
+const stamp = requireString(record.stamp, "stamp");
+
+const altObject = record.alt_text;
+if (typeof altObject !== "object" || altObject === null) {
+  throw new Error(
+    `figure "${figureName}": record missing provenance field "alt_text"`
+  );
+}
+const altText = requireString(altObject.alt_text, "alt_text.alt_text");
+
+const series = record.series;
+if (!Array.isArray(series) || series.length === 0) {
+  throw new Error(
+    `figure "${figureName}": record missing provenance field "series"`
+  );
+}
+const sourceArtifacts = record.source_artifacts;
+if (!Array.isArray(sourceArtifacts) || sourceArtifacts.length === 0) {
+  throw new Error(
+    `figure "${figureName}": record missing provenance field "source_artifacts"`
+  );
+}
+
+// Source line: series, source, method — all bound from the record.
+const seriesNames = series
+  .map((s) => String(s.display_name ?? s.id ?? "(unnamed series)"))
+  .join(" · ");
+const sourceLine = `${seriesNames} · source: ${sourceArtifacts.join(
+  ", "
+)} · method: ${builder}`;
+
+// Permalink: this page's canonical path (base-aware, stable across dev
+// and the deployed site), anchored on the figure's stable record name.
+// Edition-scoping of permalinks is a later story.
+const permalink = `${Astro.url.pathname}#${figureName}`;
+---
+<figure class="wrapper">
+  <p class="exhibit-no">{exhibitNo}</p>
+  <h2 class="exhibit-title">{title}</h2>
+  <p class="caption">{altObject.trend ?? altText}</p>
+  <hr class="rule" />
+  <img
+    class="chart"
+    src={chartSrc}
+    alt={altText}
+    width={record.canvas_px?.width ?? 1200}
+    height={record.canvas_px?.height ?? 800}
+    loading="lazy"
+  />
+  <p class="stamp-row">
+    <span class="release-stamp">{stamp}</span>
+  </p>
+  <p class="source-line">{sourceLine}</p>
+  <a class="permalink" href={permalink}>{permalink}</a>
+</figure>
+
+<style>
+  .wrapper {
+    margin: 24px 0;
+    border: 0;
+  }
+  .exhibit-no {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 400;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--faded);
+    margin: 0;
+  }
+  .exhibit-title {
+    font-size: 26px;
+    font-weight: 900;
+    text-transform: uppercase;
+    line-height: 1.1;
+    margin: 8px 0 0;
+  }
+  .caption {
+    font-size: 15.5px;
+    line-height: 1.5;
+    max-width: var(--measure);
+    color: var(--ink2);
+    margin: 8px 0 0;
+  }
+  .rule {
+    border: 0;
+    border-top: 1px solid var(--rule);
+    margin: 16px 0;
+  }
+  .chart {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    background: var(--paper);
+  }
+  .stamp-row {
+    margin: 16px 0 0;
+  }
+  .release-stamp {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent-red);
+    border: 2px solid var(--accent-red);
+    padding: 2px 9px;
+    transform: rotate(-2deg);
+  }
+  .source-line {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--faded);
+    margin: 12px 0 0;
+  }
+  .permalink {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--accent-red);
+    display: inline-block;
+    margin: 8px 0 0;
+  }
+</style>

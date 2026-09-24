@@ -1,0 +1,39 @@
+---
+// The pilot figure page: proves the manifest -> record -> wrapper
+// binding with the committed pilot export (story 1.8 refines this into
+// the hero page). The record is read from the build-time staged copy of
+// the committed figure record; the wrapper refuses (build fails) on any
+// missing provenance field.
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import Base from "../../layouts/Base.astro";
+import FigureWrapper from "../../components/FigureWrapper.astro";
+
+// The staged pilot record (prebuild step, D5); cwd = the package
+// directory (see index.astro for why not a module-relative URL).
+const recordPath = path.resolve(
+  process.cwd(),
+  "public",
+  "artifacts",
+  "figures",
+  "rebalance_growth_v1.figure.json"
+);
+const record = JSON.parse(readFileSync(recordPath, "utf8"));
+
+// Astro 7 does not rewrite asset URLs with `base`; prefix explicitly.
+// (BASE_URL is '/' by default; no trailing slash when base is set.)
+const base = import.meta.env.BASE_URL.endsWith("/")
+  ? import.meta.env.BASE_URL
+  : import.meta.env.BASE_URL + "/";
+const chartSrc = base + "artifacts/figures/rebalance_growth_v1.svg";
+---
+<Base title="Real growth, rebalanced — Portfolio Study">
+  <article>
+    <FigureWrapper
+      record={record}
+      exhibitNo="EXHIBIT I"
+      title="Real growth, rebalanced — 60/40"
+      chartSrc={chartSrc}
+    />
+  </article>
+</Base>

@@ -1,0 +1,38 @@
+/* Design tokens — DESIGN.md "The Dispatch Wire" (Theme D).
+   Palette and type roles as CSS custom properties; component styles
+   reference only these names. The web-page type stacks are the
+   Georgia / ui-monospace system stacks (DESIGN.md §Typography); the
+   WCAG-verified foreground × ground pairings are machine-encoded in
+   config/pairings_contract.json (the accessibility-floor input).
+   Zero border-radius everywhere (DESIGN.md §Rounded). */
+
+:root {
+  /* Surface */
+  --paper: #faf6ea;
+  --paper2: #f0e9d3;
+  --dark: #0e0c08;
+  --cream: #f4eedb;
+
+  /* Ink */
+  --ink: #0b0906;
+  --ink2: #2b251a;
+
+  /* Rules & utility */
+  --rule: #8a7e63;
+  --faded: #776c56;
+
+  /* Accents */
+  --accent-red: #6b1212;
+  --accent-red-bright: #9e0d0d; /* dark-panel border use only; never paper text */
+  --gold: #8f6a1a; /* display accents, >= 14px only */
+
+  /* Data series (closed palette — no hues beyond these) */
+  --data-good: #2e5a24;
+  --data-bad: #6b1212;
+  --data-neutral: #5c554a;
+
+  /* Type */
+  --font-serif: Georgia, "Times New Roman", Times, serif;
+  --font-mono: ui-monospace, Menlo, "Courier New", Courier, monospace;
+  --measure: 62ch;
+}

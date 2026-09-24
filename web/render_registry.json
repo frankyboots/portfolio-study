@@ -1,0 +1,20 @@
+[
+  { "route": "canonical_60_40_monthly_v1" },
+  { "route": "canonical_60_40_annual_v1" },
+  { "route": "canonical_60_40_rebalance_diff_v1" },
+  {
+    "route": "/",
+    "depends_on": [
+      "canonical_60_40_monthly_v1",
+      "canonical_60_40_annual_v1",
+      "canonical_60_40_rebalance_diff_v1"
+    ]
+  },
+  {
+    "route": "/figures/rebalance-growth",
+    "depends_on": [
+      "canonical_60_40_monthly_v1",
+      "canonical_60_40_annual_v1"
+    ]
+  }
+]

@@ -1,0 +1,136 @@
+---
+// The latest-at-root study index: the manifest's artifact registry
+// (name / units / index / shape) plus links to the figure pages.
+// Every rendered value is bound from the staged manifest.json — no
+// computation at the render layer (AD-4), no client-side JS (D9).
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { getCollection } from "astro:content";
+import Base from "../layouts/Base.astro";
+
+// The staged manifest (prebuild step, D5). Resolved from the package
+// directory (npm runs scripts with cwd = web/), not from a URL relative
+// to this module: at prerender time import.meta.url points at a dist
+// chunk, which would bake the wrong path in.
+const manifestPath = path.resolve(process.cwd(), "public", "artifacts", "manifest.json");
+let manifest;
+try {
+  manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+} catch {
+  throw new Error(
+    `index: staged manifest.json not found at ${manifestPath} — ` +
+      "the prebuild staging step (npm run build runs it) must have copied " +
+      "manifest.json into web/public/artifacts/"
+  );
+}
+
+const artifacts: Array<{
+  name: string;
+  units: Record<string, string>;
+  index: string;
+  shape_family: string;
+}> = Object.entries(manifest.artifacts ?? {}).map(([name, entry]) => ({
+  name,
+  units: entry.units ?? {},
+  index: String(entry.index ?? ""),
+  shape_family: String(entry.shape_family ?? ""),
+}));
+artifacts.sort((a, b) => a.name.localeCompare(b.name));
+
+const study = await getCollection("study");
+
+// Astro 7 does not rewrite internal links with `base`; prefix explicitly.
+// (BASE_URL is '/' by default; no trailing slash when base is set.)
+const base = import.meta.env.BASE_URL.endsWith("/")
+  ? import.meta.env.BASE_URL
+  : import.meta.env.BASE_URL + "/";
+const figureHref = base + "figures/rebalance-growth";
+---
+<Base title="Portfolio Study — latest">
+  <h1 class="flag">Portfolio Study</h1>
+  <p class="lede">
+    Latest at root: this tree is the newest Edition. Every number on the
+    site binds to a manifest-registered data artifact and a committed
+    figure record; nothing is computed on the page.
+  </p>
+
+  <hr class="section-rule" />
+  <h2>Artifact registry</h2>
+  <table class="registry">
+    <thead>
+      <tr>
+        <th>artifact</th>
+        <th>index</th>
+        <th>shape</th>
+        <th>units</th>
+      </tr>
+    </thead>
+    <tbody>
+      {artifacts.map((entry) => (
+        <tr>
+          <td class="mono">{entry.name}</td>
+          <td class="mono">{entry.index}</td>
+          <td>{entry.shape_family}</td>
+          <td>
+            {Object.entries(entry.units).map(([label, units]) => (
+              <p class="units-line">
+                <span class="mono units-label">{label}</span> {units}
+              </p>
+            ))}
+          </td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <hr class="section-rule" />
+  <h2>Figures</h2>
+  <p>
+    <a href={figureHref}>
+      Real growth, rebalanced — the pilot figure
+    </a>
+  </p>
+
+  <hr class="section-rule" />
+  <h2>Study</h2>
+  {study.map((entry) => (
+    <p>
+      <strong>{entry.data.title}.</strong> {entry.body}
+    </p>
+  ))}
+</Base>
+
+<style>
+  .registry {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 15px;
+  }
+  .registry th {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--faded);
+    text-align: left;
+    border-bottom: 1px solid var(--rule);
+    padding: 4px 8px 4px 0;
+  }
+  .registry td {
+    vertical-align: top;
+    border-bottom: 1px solid var(--rule);
+    padding: 8px 8px 8px 0;
+  }
+  .registry tbody tr:nth-child(even) {
+    background: var(--paper2);
+  }
+  .units-line {
+    margin: 0 0 4px;
+  }
+  .units-label {
+    font-size: 11px;
+    color: var(--faded);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+</style>
