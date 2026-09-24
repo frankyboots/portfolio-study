@@ -50,7 +50,7 @@
     }
   },
   "build": {
-    "head": "ecd5e8637eddfd4198cb8e43060a4d2da091388a"
+    "head": "f633cfb533364e30ef075b33d6735f118a12f0fb"
   },
   "edition": null,
   "gates": [
@@ -103,7 +103,32 @@
       "runner": "scripts/check_import_walls.py"
     }
   ],
-  "render_registry": [],
+  "render_registry": [
+    {
+      "route": "canonical_60_40_monthly_v1"
+    },
+    {
+      "route": "canonical_60_40_annual_v1"
+    },
+    {
+      "route": "canonical_60_40_rebalance_diff_v1"
+    },
+    {
+      "depends_on": [
+        "canonical_60_40_monthly_v1",
+        "canonical_60_40_annual_v1",
+        "canonical_60_40_rebalance_diff_v1"
+      ],
+      "route": "/"
+    },
+    {
+      "depends_on": [
+        "canonical_60_40_monthly_v1",
+        "canonical_60_40_annual_v1"
+      ],
+      "route": "/figures/rebalance-growth"
+    }
+  ],
   "schema_version": "1",
   "vintage": {
     "k": 333.8925,
