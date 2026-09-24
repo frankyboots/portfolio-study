@@ -22,6 +22,7 @@ from __future__ import annotations
 import json
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 import matplotlib
 
@@ -55,7 +56,17 @@ STAMP_BORDER_PX: float = 2.0  # "2px solid accent-red border"
 
 #: Locked line dash/weight ladder (DESIGN.md series-encoding ladder):
 #: name -> (matplotlib dash style, weight in pt at the locked DPI).
-DASH_LADDER: dict[str, tuple[str, float]] = {
+#: Matplotlib's accepted linestyle strings (the locked ladder's value
+#: type, so callers of ``dash_style`` type-check against Line2D et al.).
+_LINESTYLE = Literal[
+    "-", "solid", "--", "dashed", "-.", "dashdot", ":", "dotted", "", "none", " "
+]
+
+#: The dash ladder (DESIGN.md). ``lw`` is the locked stroke weight in
+#: points; a dashed entry is declared on the neutral series so the two
+#: data hues survive a grayscale re-render even though their luminance
+#: difference is below the 0.02 threshold.
+DASH_LADDER: dict[str, tuple[_LINESTYLE, float]] = {
     "dash-dot": ("-.", 2.0),
     "dashed": ("--", 2.0),
     "dotted": (":", 2.0),
@@ -122,7 +133,7 @@ def pairing_row(fg: str, on: str) -> dict | None:
     return None
 
 
-def dash_style(name: str) -> tuple[str, float]:
+def dash_style(name: str) -> tuple[_LINESTYLE, float]:
     """The locked ladder entry for a dash name."""
     if name not in DASH_LADDER:
         raise KeyError(f"dash not in the locked ladder: {name!r}")
